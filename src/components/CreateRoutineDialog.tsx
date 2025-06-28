@@ -42,7 +42,7 @@ export default function CreateRoutineDialog({ open, onOpenChange }: CreateRoutin
 
   const { data: exercises } = useQuery({
     queryKey: ['exercises'],
-    queryFn: async () => {
+    queryFn: async (): Promise<Exercise[]> => {
       const { data, error } = await supabase
         .from('exercises')
         .select('*')
@@ -50,7 +50,7 @@ export default function CreateRoutineDialog({ open, onOpenChange }: CreateRoutin
         .order('name');
 
       if (error) throw error;
-      return data as Exercise[];
+      return data || [];
     },
     enabled: !!user?.id && open,
   });
@@ -94,7 +94,7 @@ export default function CreateRoutineDialog({ open, onOpenChange }: CreateRoutin
         description: "Routine created successfully",
       });
     },
-    onError: (error) => {
+    onError: () => {
       toast({
         title: "Error",
         description: "Failed to create routine",

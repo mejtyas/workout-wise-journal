@@ -88,7 +88,7 @@ export default function EditRoutineDialog({ routine, open, onOpenChange }: EditR
         description: "Routine updated successfully",
       });
     },
-    onError: (error) => {
+    onError: () => {
       toast({
         title: "Error",
         description: "Failed to update routine",
