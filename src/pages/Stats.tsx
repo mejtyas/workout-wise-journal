@@ -17,6 +17,12 @@ interface StatsData {
   totalVolume: number;
 }
 
+interface OverallStats {
+  totalWorkouts: number;
+  totalExercises: number;
+  averageDuration: number;
+}
+
 const chartConfig = {
   weight: {
     label: "Weight (kg)",
@@ -38,26 +44,26 @@ const chartConfig = {
 
 export default function Stats() {
   const { user } = useAuth();
-  const [dateRange, setDateRange] = useState(30); // days
+  const [dateRange, setDateRange] = useState(30);
 
-  const { data: statsData, isLoading } = useQuery({
+  const { data: statsData, isLoading } = useQuery<StatsData[]>({
     queryKey: ['stats', dateRange],
-    queryFn: async () => {
+    queryFn: async (): Promise<StatsData[]> => {
+      if (!user?.id) return [];
+      
       const endDate = new Date();
       const startDate = subDays(endDate, dateRange);
       
-      // Get daily logs
       const { data: dailyLogs, error: dailyError } = await supabase
         .from('daily_logs')
         .select('*')
-        .eq('user_id', user?.id)
+        .eq('user_id', user.id)
         .gte('date', format(startDate, 'yyyy-MM-dd'))
         .lte('date', format(endDate, 'yyyy-MM-dd'))
         .order('date');
 
       if (dailyError) throw dailyError;
 
-      // Get workout sessions with set records
       const { data: sessions, error: sessionsError } = await supabase
         .from('workout_sessions')
         .select(`
@@ -67,23 +73,22 @@ export default function Stats() {
             weight
           )
         `)
-        .eq('user_id', user?.id)
+        .eq('user_id', user.id)
         .gte('date', format(startDate, 'yyyy-MM-dd'))
         .lte('date', format(endDate, 'yyyy-MM-dd'))
         .order('date');
 
       if (sessionsError) throw sessionsError;
 
-      // Create data for each day
-      const dateRange = eachDayOfInterval({ start: startDate, end: endDate });
-      const statsData: StatsData[] = dateRange.map(date => {
+      const dateRangeArray = eachDayOfInterval({ start: startDate, end: endDate });
+      const statsData: StatsData[] = dateRangeArray.map(date => {
         const dateStr = format(date, 'yyyy-MM-dd');
         const dailyLog = dailyLogs?.find(log => log.date === dateStr);
         const daySession = sessions?.find(session => session.date === dateStr);
         
         let totalVolume = 0;
-        if (daySession?.set_records) {
-          totalVolume = daySession.set_records.reduce((sum, record) => 
+        if (daySession?.set_records && Array.isArray(daySession.set_records)) {
+          totalVolume = daySession.set_records.reduce((sum: number, record: any) => 
             sum + (record.reps * record.weight), 0
           );
         }
@@ -102,35 +107,40 @@ export default function Stats() {
     enabled: !!user?.id,
   });
 
-  const { data: overallStats } = useQuery({
+  const { data: overallStats } = useQuery<OverallStats>({
     queryKey: ['overall-stats'],
-    queryFn: async () => {
-      // Get total workouts
+    queryFn: async (): Promise<OverallStats> => {
+      if (!user?.id) {
+        return {
+          totalWorkouts: 0,
+          totalExercises: 0,
+          averageDuration: 0,
+        };
+      }
+
       const { count: totalWorkouts, error: workoutsError } = await supabase
         .from('workout_sessions')
         .select('*', { count: 'exact', head: true })
-        .eq('user_id', user?.id);
+        .eq('user_id', user.id);
 
       if (workoutsError) throw workoutsError;
 
-      // Get total exercises created
       const { count: totalExercises, error: exercisesError } = await supabase
         .from('exercises')
         .select('*', { count: 'exact', head: true })
-        .eq('user_id', user?.id);
+        .eq('user_id', user.id);
 
       if (exercisesError) throw exercisesError;
 
-      // Get average workout duration
       const { data: avgDuration, error: avgError } = await supabase
         .from('workout_sessions')
         .select('duration_minutes')
-        .eq('user_id', user?.id)
+        .eq('user_id', user.id)
         .not('duration_minutes', 'is', null);
 
       if (avgError) throw avgError;
 
-      const averageDuration = avgDuration?.length > 0 
+      const averageDuration = avgDuration && avgDuration.length > 0 
         ? avgDuration.reduce((sum, session) => sum + (session.duration_minutes || 0), 0) / avgDuration.length
         : 0;
 

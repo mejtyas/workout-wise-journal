@@ -15,19 +15,21 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Plus, Minus } from 'lucide-react';
 
+interface RoutineExercise {
+  exercise_id: string;
+  order_index: number;
+  default_sets: number;
+  default_reps: number;
+  exercises: {
+    name: string;
+    muscle_group: string;
+  };
+}
+
 interface WorkoutRoutine {
   id: string;
   name: string;
-  routine_exercises: {
-    exercise_id: string;
-    order_index: number;
-    default_sets: number;
-    default_reps: number;
-    exercises: {
-      name: string;
-      muscle_group: string;
-    };
-  }[];
+  routine_exercises: RoutineExercise[];
 }
 
 interface EditRoutineDialogProps {
@@ -49,7 +51,6 @@ export default function EditRoutineDialog({ routine, open, onOpenChange }: EditR
 
   const updateRoutineMutation = useMutation({
     mutationFn: async () => {
-      // Update routine name
       const { error: routineError } = await supabase
         .from('workout_routines')
         .update({ name: routineName })
@@ -57,7 +58,6 @@ export default function EditRoutineDialog({ routine, open, onOpenChange }: EditR
 
       if (routineError) throw routineError;
 
-      // Delete existing routine exercises
       const { error: deleteError } = await supabase
         .from('routine_exercises')
         .delete()
@@ -65,7 +65,6 @@ export default function EditRoutineDialog({ routine, open, onOpenChange }: EditR
 
       if (deleteError) throw deleteError;
 
-      // Insert updated routine exercises
       const routineExercises = exercises.map((exercise, index) => ({
         routine_id: routine.id,
         exercise_id: exercise.exercise_id,

@@ -40,13 +40,15 @@ export default function CreateRoutineDialog({ open, onOpenChange }: CreateRoutin
   const [routineName, setRoutineName] = useState('');
   const [selectedExercises, setSelectedExercises] = useState<SelectedExercise[]>([]);
 
-  const { data: exercises } = useQuery({
+  const { data: exercises } = useQuery<Exercise[]>({
     queryKey: ['exercises'],
     queryFn: async (): Promise<Exercise[]> => {
+      if (!user?.id) return [];
+      
       const { data, error } = await supabase
         .from('exercises')
         .select('*')
-        .eq('user_id', user?.id)
+        .eq('user_id', user.id)
         .order('name');
 
       if (error) throw error;
@@ -57,19 +59,19 @@ export default function CreateRoutineDialog({ open, onOpenChange }: CreateRoutin
 
   const createRoutineMutation = useMutation({
     mutationFn: async () => {
-      // Create the routine
+      if (!user?.id) throw new Error('User not authenticated');
+      
       const { data: routine, error: routineError } = await supabase
         .from('workout_routines')
         .insert({
           name: routineName,
-          user_id: user?.id,
+          user_id: user.id,
         })
         .select()
         .single();
 
       if (routineError) throw routineError;
 
-      // Add exercises to the routine
       const routineExercises = selectedExercises.map((exercise, index) => ({
         routine_id: routine.id,
         exercise_id: exercise.id,
