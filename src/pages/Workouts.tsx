@@ -167,18 +167,18 @@ export default function Workouts() {
                 <div className="space-y-2">
                   {routine.routine_exercises
                     .sort((a, b) => a.order_index - b.order_index)
-                    .slice(0, 3)
+                    .slice(0, 4)
                     .map((routineExercise, index) => (
                       <div key={index} className="flex justify-between items-center text-sm">
                         <span className="font-medium">{routineExercise.exercises.name}</span>
-                        <span className="text-gray-500">
-                          {routineExercise.default_sets}x{routineExercise.default_reps}
+                        <span className="text-gray-500 text-xs">
+                          {routineExercise.exercises.muscle_group}
                         </span>
                       </div>
                     ))}
-                  {routine.routine_exercises.length > 3 && (
+                  {routine.routine_exercises.length > 4 && (
                     <div className="text-sm text-gray-500 text-center pt-2">
-                      +{routine.routine_exercises.length - 3} more exercises
+                      +{routine.routine_exercises.length - 4} more exercises
                     </div>
                   )}
                 </div>

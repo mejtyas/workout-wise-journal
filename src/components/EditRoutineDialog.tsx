@@ -13,7 +13,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Minus } from 'lucide-react';
 
 interface RoutineExercise {
   exercise_id: string;
@@ -42,11 +41,9 @@ export default function EditRoutineDialog({ routine, open, onOpenChange }: EditR
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [routineName, setRoutineName] = useState(routine.name);
-  const [exercises, setExercises] = useState(routine.routine_exercises);
 
   useEffect(() => {
     setRoutineName(routine.name);
-    setExercises(routine.routine_exercises);
   }, [routine]);
 
   const updateRoutineMutation = useMutation({
@@ -57,27 +54,6 @@ export default function EditRoutineDialog({ routine, open, onOpenChange }: EditR
         .eq('id', routine.id);
 
       if (routineError) throw routineError;
-
-      const { error: deleteError } = await supabase
-        .from('routine_exercises')
-        .delete()
-        .eq('routine_id', routine.id);
-
-      if (deleteError) throw deleteError;
-
-      const routineExercises = exercises.map((exercise, index) => ({
-        routine_id: routine.id,
-        exercise_id: exercise.exercise_id,
-        order_index: index,
-        default_sets: exercise.default_sets,
-        default_reps: exercise.default_reps,
-      }));
-
-      const { error: insertError } = await supabase
-        .from('routine_exercises')
-        .insert(routineExercises);
-
-      if (insertError) throw insertError;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['routines'] });
@@ -95,12 +71,6 @@ export default function EditRoutineDialog({ routine, open, onOpenChange }: EditR
       });
     },
   });
-
-  const updateExercise = (exerciseId: string, field: 'default_sets' | 'default_reps', value: number) => {
-    setExercises(exercises.map(e => 
-      e.exercise_id === exerciseId ? { ...e, [field]: Math.max(1, value) } : e
-    ));
-  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -121,7 +91,7 @@ export default function EditRoutineDialog({ routine, open, onOpenChange }: EditR
         <DialogHeader>
           <DialogTitle>Edit Routine</DialogTitle>
           <DialogDescription>
-            Update your routine name and exercise settings.
+            Update your routine name. Exercise performance will be recorded during workouts.
           </DialogDescription>
         </DialogHeader>
 
@@ -137,63 +107,15 @@ export default function EditRoutineDialog({ routine, open, onOpenChange }: EditR
           </div>
 
           <div className="space-y-4">
-            <Label>Exercises</Label>
-            {exercises.map((exercise) => (
-              <div key={exercise.exercise_id} className="border rounded-lg p-4">
-                <div className="flex-1 mb-3">
+            <Label>Exercises in this routine</Label>
+            {routine.routine_exercises
+              .sort((a, b) => a.order_index - b.order_index)
+              .map((exercise) => (
+                <div key={exercise.exercise_id} className="border rounded-lg p-4">
                   <div className="font-medium">{exercise.exercises.name}</div>
                   <div className="text-sm text-gray-500">{exercise.exercises.muscle_group}</div>
                 </div>
-
-                <div className="flex gap-4">
-                  <div className="flex items-center gap-2">
-                    <Label className="text-sm">Sets:</Label>
-                    <div className="flex items-center gap-1">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => updateExercise(exercise.exercise_id, 'default_sets', exercise.default_sets - 1)}
-                      >
-                        <Minus className="h-3 w-3" />
-                      </Button>
-                      <span className="w-8 text-center">{exercise.default_sets}</span>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => updateExercise(exercise.exercise_id, 'default_sets', exercise.default_sets + 1)}
-                      >
-                        <Plus className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <Label className="text-sm">Reps:</Label>
-                    <div className="flex items-center gap-1">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => updateExercise(exercise.exercise_id, 'default_reps', exercise.default_reps - 1)}
-                      >
-                        <Minus className="h-3 w-3" />
-                      </Button>
-                      <span className="w-8 text-center">{exercise.default_reps}</span>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => updateExercise(exercise.exercise_id, 'default_reps', exercise.default_reps + 1)}
-                      >
-                        <Plus className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
+              ))}
           </div>
 
           <div className="flex justify-end gap-3">

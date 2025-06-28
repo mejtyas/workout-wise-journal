@@ -15,17 +15,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Minus } from 'lucide-react';
 
 interface Exercise {
   id: string;
   name: string;
   muscle_group: string;
-}
-
-interface SelectedExercise extends Exercise {
-  sets: number;
-  reps: number;
 }
 
 interface CreateRoutineDialogProps {
@@ -38,7 +32,7 @@ export default function CreateRoutineDialog({ open, onOpenChange }: CreateRoutin
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [routineName, setRoutineName] = useState('');
-  const [selectedExercises, setSelectedExercises] = useState<SelectedExercise[]>([]);
+  const [selectedExercises, setSelectedExercises] = useState<Exercise[]>([]);
 
   const { data: exercises } = useQuery<Exercise[]>({
     queryKey: ['exercises'],
@@ -76,8 +70,8 @@ export default function CreateRoutineDialog({ open, onOpenChange }: CreateRoutin
         routine_id: routine.id,
         exercise_id: exercise.id,
         order_index: index,
-        default_sets: exercise.sets,
-        default_reps: exercise.reps,
+        default_sets: null,
+        default_reps: null,
       }));
 
       const { error: exercisesError } = await supabase
@@ -107,16 +101,10 @@ export default function CreateRoutineDialog({ open, onOpenChange }: CreateRoutin
 
   const handleExerciseToggle = (exercise: Exercise, checked: boolean) => {
     if (checked) {
-      setSelectedExercises([...selectedExercises, { ...exercise, sets: 3, reps: 10 }]);
+      setSelectedExercises([...selectedExercises, exercise]);
     } else {
       setSelectedExercises(selectedExercises.filter(e => e.id !== exercise.id));
     }
-  };
-
-  const updateExercise = (exerciseId: string, field: 'sets' | 'reps', value: number) => {
-    setSelectedExercises(selectedExercises.map(e => 
-      e.id === exerciseId ? { ...e, [field]: Math.max(1, value) } : e
-    ));
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -138,7 +126,7 @@ export default function CreateRoutineDialog({ open, onOpenChange }: CreateRoutin
         <DialogHeader>
           <DialogTitle>Create New Routine</DialogTitle>
           <DialogDescription>
-            Choose exercises and set default sets/reps for your routine.
+            Choose exercises for your routine. You'll record sets and reps during your workout.
           </DialogDescription>
         </DialogHeader>
 
@@ -157,11 +145,10 @@ export default function CreateRoutineDialog({ open, onOpenChange }: CreateRoutin
             <Label>Select Exercises</Label>
             {exercises?.map((exercise) => {
               const isSelected = selectedExercises.some(e => e.id === exercise.id);
-              const selectedExercise = selectedExercises.find(e => e.id === exercise.id);
 
               return (
                 <div key={exercise.id} className="border rounded-lg p-4">
-                  <div className="flex items-center space-x-3 mb-2">
+                  <div className="flex items-center space-x-3">
                     <Checkbox
                       checked={isSelected}
                       onCheckedChange={(checked) => handleExerciseToggle(exercise, checked as boolean)}
@@ -171,56 +158,6 @@ export default function CreateRoutineDialog({ open, onOpenChange }: CreateRoutin
                       <div className="text-sm text-gray-500">{exercise.muscle_group}</div>
                     </div>
                   </div>
-
-                  {isSelected && selectedExercise && (
-                    <div className="flex gap-4 mt-3 ml-6">
-                      <div className="flex items-center gap-2">
-                        <Label className="text-sm">Sets:</Label>
-                        <div className="flex items-center gap-1">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => updateExercise(exercise.id, 'sets', selectedExercise.sets - 1)}
-                          >
-                            <Minus className="h-3 w-3" />
-                          </Button>
-                          <span className="w-8 text-center">{selectedExercise.sets}</span>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => updateExercise(exercise.id, 'sets', selectedExercise.sets + 1)}
-                          >
-                            <Plus className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <Label className="text-sm">Reps:</Label>
-                        <div className="flex items-center gap-1">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => updateExercise(exercise.id, 'reps', selectedExercise.reps - 1)}
-                          >
-                            <Minus className="h-3 w-3" />
-                          </Button>
-                          <span className="w-8 text-center">{selectedExercise.reps}</span>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => updateExercise(exercise.id, 'reps', selectedExercise.reps + 1)}
-                          >
-                            <Plus className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
                 </div>
               );
             })}
