@@ -10,6 +10,9 @@ import Layout from "@/components/Layout";
 import Auth from "@/pages/Auth";
 import Dashboard from "@/pages/Dashboard";
 import Exercises from "@/pages/Exercises";
+import Workouts from "@/pages/Workouts";
+import History from "@/pages/History";
+import Stats from "@/pages/Stats";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 
@@ -32,9 +35,9 @@ const App = () => (
             }>
               <Route path="dashboard" element={<Dashboard />} />
               <Route path="exercises" element={<Exercises />} />
-              <Route path="workouts" element={<div className="p-8 text-center">Workouts page coming soon!</div>} />
-              <Route path="stats" element={<div className="p-8 text-center">Stats page coming soon!</div>} />
-              <Route path="history" element={<div className="p-8 text-center">History page coming soon!</div>} />
+              <Route path="workouts" element={<Workouts />} />
+              <Route path="stats" element={<Stats />} />
+              <Route path="history" element={<History />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>
