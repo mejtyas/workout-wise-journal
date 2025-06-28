@@ -1,0 +1,239 @@
+
+import React, { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
+import { useToast } from '@/hooks/use-toast';
+import { Plus, Minus } from 'lucide-react';
+
+interface Exercise {
+  id: string;
+  name: string;
+  muscle_group: string;
+}
+
+interface SelectedExercise extends Exercise {
+  sets: number;
+  reps: number;
+}
+
+interface CreateRoutineDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
+export default function CreateRoutineDialog({ open, onOpenChange }: CreateRoutineDialogProps) {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [routineName, setRoutineName] = useState('');
+  const [selectedExercises, setSelectedExercises] = useState<SelectedExercise[]>([]);
+
+  const { data: exercises } = useQuery({
+    queryKey: ['exercises'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('exercises')
+        .select('*')
+        .eq('user_id', user?.id)
+        .order('name');
+
+      if (error) throw error;
+      return data as Exercise[];
+    },
+    enabled: !!user?.id && open,
+  });
+
+  const createRoutineMutation = useMutation({
+    mutationFn: async () => {
+      // Create the routine
+      const { data: routine, error: routineError } = await supabase
+        .from('workout_routines')
+        .insert({
+          name: routineName,
+          user_id: user?.id,
+        })
+        .select()
+        .single();
+
+      if (routineError) throw routineError;
+
+      // Add exercises to the routine
+      const routineExercises = selectedExercises.map((exercise, index) => ({
+        routine_id: routine.id,
+        exercise_id: exercise.id,
+        order_index: index,
+        default_sets: exercise.sets,
+        default_reps: exercise.reps,
+      }));
+
+      const { error: exercisesError } = await supabase
+        .from('routine_exercises')
+        .insert(routineExercises);
+
+      if (exercisesError) throw exercisesError;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['routines'] });
+      setRoutineName('');
+      setSelectedExercises([]);
+      onOpenChange(false);
+      toast({
+        title: "Success",
+        description: "Routine created successfully",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: "Failed to create routine",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleExerciseToggle = (exercise: Exercise, checked: boolean) => {
+    if (checked) {
+      setSelectedExercises([...selectedExercises, { ...exercise, sets: 3, reps: 10 }]);
+    } else {
+      setSelectedExercises(selectedExercises.filter(e => e.id !== exercise.id));
+    }
+  };
+
+  const updateExercise = (exerciseId: string, field: 'sets' | 'reps', value: number) => {
+    setSelectedExercises(selectedExercises.map(e => 
+      e.id === exerciseId ? { ...e, [field]: Math.max(1, value) } : e
+    ));
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!routineName.trim() || selectedExercises.length === 0) {
+      toast({
+        title: "Error",
+        description: "Please enter a routine name and select at least one exercise",
+        variant: "destructive",
+      });
+      return;
+    }
+    createRoutineMutation.mutate();
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Create New Routine</DialogTitle>
+          <DialogDescription>
+            Choose exercises and set default sets/reps for your routine.
+          </DialogDescription>
+        </DialogHeader>
+
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="space-y-2">
+            <Label htmlFor="routine-name">Routine Name</Label>
+            <Input
+              id="routine-name"
+              value={routineName}
+              onChange={(e) => setRoutineName(e.target.value)}
+              placeholder="Enter routine name"
+            />
+          </div>
+
+          <div className="space-y-4">
+            <Label>Select Exercises</Label>
+            {exercises?.map((exercise) => {
+              const isSelected = selectedExercises.some(e => e.id === exercise.id);
+              const selectedExercise = selectedExercises.find(e => e.id === exercise.id);
+
+              return (
+                <div key={exercise.id} className="border rounded-lg p-4">
+                  <div className="flex items-center space-x-3 mb-2">
+                    <Checkbox
+                      checked={isSelected}
+                      onCheckedChange={(checked) => handleExerciseToggle(exercise, checked as boolean)}
+                    />
+                    <div className="flex-1">
+                      <div className="font-medium">{exercise.name}</div>
+                      <div className="text-sm text-gray-500">{exercise.muscle_group}</div>
+                    </div>
+                  </div>
+
+                  {isSelected && selectedExercise && (
+                    <div className="flex gap-4 mt-3 ml-6">
+                      <div className="flex items-center gap-2">
+                        <Label className="text-sm">Sets:</Label>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => updateExercise(exercise.id, 'sets', selectedExercise.sets - 1)}
+                          >
+                            <Minus className="h-3 w-3" />
+                          </Button>
+                          <span className="w-8 text-center">{selectedExercise.sets}</span>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => updateExercise(exercise.id, 'sets', selectedExercise.sets + 1)}
+                          >
+                            <Plus className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <Label className="text-sm">Reps:</Label>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => updateExercise(exercise.id, 'reps', selectedExercise.reps - 1)}
+                          >
+                            <Minus className="h-3 w-3" />
+                          </Button>
+                          <span className="w-8 text-center">{selectedExercise.reps}</span>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => updateExercise(exercise.id, 'reps', selectedExercise.reps + 1)}
+                          >
+                            <Plus className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="flex justify-end gap-3">
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={createRoutineMutation.isPending}>
+              {createRoutineMutation.isPending ? 'Creating...' : 'Create Routine'}
+            </Button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
