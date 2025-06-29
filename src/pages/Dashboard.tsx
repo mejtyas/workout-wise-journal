@@ -1,15 +1,14 @@
-
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Card, CardContent } from '@/components/ui/card';
 import { toast } from 'sonner';
-import { Play, Square, Timer, Scale, Utensils, Plus } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { WorkoutSessionCard } from '@/components/dashboard/WorkoutSessionCard';
+import { WeightCard } from '@/components/dashboard/WeightCard';
+import { CaloriesCard } from '@/components/dashboard/CaloriesCard';
+import { ExerciseLoggingCard } from '@/components/dashboard/ExerciseLoggingCard';
 
 interface WorkoutRoutine {
   id: string;
@@ -51,10 +50,8 @@ export default function Dashboard() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [activeSession, setActiveSession] = useState<WorkoutSession | null>(null);
-  const [selectedRoutine, setSelectedRoutine] = useState('');
-  const [weight, setWeight] = useState('');
-  const [calories, setCalories] = useState('');
   const [sessionStartTime, setSessionStartTime] = useState<Date | null>(null);
+  const [elapsedTime, setElapsedTime] = useState('00:00:00');
 
   // Fetch routines
   const { data: routines = [] } = useQuery({
@@ -166,14 +163,32 @@ export default function Dashboard() {
   const updateDailyLogMutation = useMutation({
     mutationFn: async ({ weight, calories }: { weight?: number; calories?: number }) => {
       const today = new Date().toISOString().split('T')[0];
+      
+      // First try to get existing record
+      const { data: existingData } = await supabase
+        .from('daily_logs')
+        .select('*')
+        .eq('user_id', user?.id)
+        .eq('date', today)
+        .maybeSingle();
+
+      const updateData: any = {
+        user_id: user?.id,
+        date: today,
+      };
+
+      // Keep existing values and only update the provided field
+      if (existingData) {
+        updateData.weight = weight !== undefined ? weight : existingData.weight;
+        updateData.calories = calories !== undefined ? calories : existingData.calories;
+      } else {
+        updateData.weight = weight;
+        updateData.calories = calories;
+      }
+
       const { error } = await supabase
         .from('daily_logs')
-        .upsert({
-          user_id: user?.id,
-          date: today,
-          weight,
-          calories
-        });
+        .upsert(updateData);
       
       if (error) throw error;
     },
@@ -183,7 +198,7 @@ export default function Dashboard() {
     },
     onError: (error) => {
       toast.error('Failed to update daily log');
-      console.error(error);
+      console.error('Daily log update error:', error);
     }
   });
 
@@ -280,37 +295,7 @@ export default function Dashboard() {
     }
   });
 
-  const handleUpdateWeight = () => {
-    const weightValue = parseFloat(weight);
-    if (weightValue > 0) {
-      updateDailyLogMutation.mutate({ weight: weightValue });
-      setWeight('');
-    }
-  };
-
-  const handleUpdateCalories = () => {
-    const caloriesValue = parseInt(calories);
-    if (caloriesValue > 0) {
-      updateDailyLogMutation.mutate({ calories: caloriesValue });
-      setCalories('');
-    }
-  };
-
-  const handleStartWorkout = () => {
-    if (selectedRoutine) {
-      startWorkoutMutation.mutate(selectedRoutine);
-    } else {
-      toast.error('Please select a workout routine first');
-    }
-  };
-
-  const handleEndWorkout = () => {
-    endWorkoutMutation.mutate();
-  };
-
   // Timer display
-  const [elapsedTime, setElapsedTime] = useState('00:00:00');
-
   useEffect(() => {
     let interval: NodeJS.Timeout;
     
@@ -333,6 +318,26 @@ export default function Dashboard() {
     };
   }, [sessionStartTime]);
 
+  const handleUpdateWeight = (weight: number) => {
+    updateDailyLogMutation.mutate({ weight });
+  };
+
+  const handleUpdateCalories = (calories: number) => {
+    updateDailyLogMutation.mutate({ calories });
+  };
+
+  const handleStartWorkout = (routineId: string) => {
+    startWorkoutMutation.mutate(routineId);
+  };
+
+  const handleEndWorkout = () => {
+    endWorkoutMutation.mutate();
+  };
+
+  const handleAddSet = (exerciseId: string, reps: number, weight: number) => {
+    addSetMutation.mutate({ exerciseId, reps, weight });
+  };
+
   return (
     <div className="px-4 space-y-6">
       <div className="text-center">
@@ -342,161 +347,40 @@ export default function Dashboard() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {/* Workout Session Card */}
-        <Card className="md:col-span-2">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Timer className="h-5 w-5 text-green-600" />
-              Workout Session
-            </CardTitle>
-            <CardDescription>
-              {activeSession ? 'Workout in progress' : 'Start your workout'}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {activeSession ? (
-              <div className="text-center space-y-4">
-                <div className="text-4xl font-mono font-bold text-green-600">
-                  {elapsedTime}
-                </div>
-                <p className="text-sm text-gray-600">Workout in progress</p>
-                <Button 
-                  onClick={handleEndWorkout}
-                  className="bg-red-600 hover:bg-red-700"
-                  disabled={endWorkoutMutation.isPending}
-                >
-                  <Square className="h-4 w-4 mr-2" />
-                  {endWorkoutMutation.isPending ? 'Ending...' : 'End Workout'}
-                </Button>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label>Select Workout Routine</Label>
-                  <Select value={selectedRoutine} onValueChange={setSelectedRoutine}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Choose a routine" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {routines.map((routine) => (
-                        <SelectItem key={routine.id} value={routine.id}>
-                          {routine.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <Button 
-                  onClick={handleStartWorkout}
-                  className="w-full bg-green-600 hover:bg-green-700"
-                  disabled={!selectedRoutine || startWorkoutMutation.isPending}
-                >
-                  <Play className="h-4 w-4 mr-2" />
-                  {startWorkoutMutation.isPending ? 'Starting...' : 'Start Workout'}
-                </Button>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        <WorkoutSessionCard
+          activeSession={activeSession}
+          routines={routines}
+          elapsedTime={elapsedTime}
+          onStartWorkout={handleStartWorkout}
+          onEndWorkout={handleEndWorkout}
+          isStarting={startWorkoutMutation.isPending}
+          isEnding={endWorkoutMutation.isPending}
+        />
 
         {/* Daily Tracking */}
         <div className="space-y-6">
-          {/* Weight Card */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Scale className="h-5 w-5 text-blue-600" />
-                Today's Weight
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {todayData?.weight && (
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-blue-600">
-                    {todayData.weight} lbs
-                  </div>
-                  <p className="text-sm text-gray-600">Logged today</p>
-                </div>
-              )}
-              <div className="flex gap-2">
-                <Input
-                  type="number"
-                  placeholder="Weight (lbs)"
-                  value={weight}
-                  onChange={(e) => setWeight(e.target.value)}
-                />
-                <Button 
-                  onClick={handleUpdateWeight}
-                  size="sm"
-                  disabled={updateDailyLogMutation.isPending}
-                >
-                  Save
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+          <WeightCard
+            todayData={todayData}
+            onUpdateWeight={handleUpdateWeight}
+            isLoading={updateDailyLogMutation.isPending}
+          />
 
-          {/* Calories Card */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Utensils className="h-5 w-5 text-yellow-600" />
-                Today's Calories
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {todayData?.calories && (
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-yellow-600">
-                    {todayData.calories} cal
-                  </div>
-                  <p className="text-sm text-gray-600">Logged today</p>
-                </div>
-              )}
-              <div className="flex gap-2">
-                <Input
-                  type="number"
-                  placeholder="Calories"
-                  value={calories}
-                  onChange={(e) => setCalories(e.target.value)}
-                />
-                <Button 
-                  onClick={handleUpdateCalories}
-                  size="sm"
-                  disabled={updateDailyLogMutation.isPending}
-                >
-                  Save
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+          <CaloriesCard
+            todayData={todayData}
+            onUpdateCalories={handleUpdateCalories}
+            isLoading={updateDailyLogMutation.isPending}
+          />
         </div>
       </div>
 
       {/* Exercise Logging Section - Only show when workout is active */}
       {activeSession && routineExercises.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Log Your Sets</CardTitle>
-            <CardDescription>Record your performance for each exercise</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-6">
-              {routineExercises.map((routineExercise) => (
-                <ExerciseLogger
-                  key={routineExercise.exercise_id}
-                  exercise={routineExercise.exercises}
-                  setRecords={setRecords.filter(record => record.exercise_id === routineExercise.exercise_id)}
-                  onAddSet={(reps, weight) => addSetMutation.mutate({ 
-                    exerciseId: routineExercise.exercise_id, 
-                    reps, 
-                    weight 
-                  })}
-                  isLoading={addSetMutation.isPending}
-                />
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+        <ExerciseLoggingCard
+          routineExercises={routineExercises}
+          setRecords={setRecords}
+          onAddSet={handleAddSet}
+          isLoading={addSetMutation.isPending}
+        />
       )}
 
       {routines.length === 0 && (
@@ -511,96 +395,6 @@ export default function Dashboard() {
           </CardContent>
         </Card>
       )}
-    </div>
-  );
-}
-
-interface ExerciseLoggerProps {
-  exercise: {
-    id: string;
-    name: string;
-    muscle_group: string;
-  };
-  setRecords: SetRecord[];
-  onAddSet: (reps: number, weight: number) => void;
-  isLoading: boolean;
-}
-
-function ExerciseLogger({ exercise, setRecords, onAddSet, isLoading }: ExerciseLoggerProps) {
-  const [reps, setReps] = useState('');
-  const [weight, setWeight] = useState('');
-
-  const handleAddSet = () => {
-    const repsValue = parseInt(reps);
-    const weightValue = parseFloat(weight);
-    
-    if (repsValue > 0 && weightValue >= 0) {
-      onAddSet(repsValue, weightValue);
-      setReps('');
-      setWeight('');
-    } else {
-      toast.error('Please enter valid reps and weight');
-    }
-  };
-
-  return (
-    <div className="border rounded-lg p-4">
-      <div className="flex justify-between items-start mb-4">
-        <div>
-          <h3 className="font-semibold text-lg">{exercise.name}</h3>
-          <p className="text-sm text-gray-600">{exercise.muscle_group}</p>
-        </div>
-      </div>
-
-      {/* Previous Sets */}
-      {setRecords.length > 0 && (
-        <div className="mb-4">
-          <h4 className="font-medium mb-2">Completed Sets:</h4>
-          <div className="space-y-1">
-            {setRecords.map((record) => (
-              <div key={record.id} className="flex justify-between text-sm bg-gray-50 p-2 rounded">
-                <span>Set {record.set_number}</span>
-                <span>{record.reps} reps × {record.weight} lbs</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Add New Set */}
-      <div className="flex gap-2 items-end">
-        <div className="flex-1">
-          <Label htmlFor={`reps-${exercise.id}`} className="text-xs">Reps</Label>
-          <Input
-            id={`reps-${exercise.id}`}
-            type="number"
-            placeholder="Reps"
-            value={reps}
-            onChange={(e) => setReps(e.target.value)}
-            className="h-8"
-          />
-        </div>
-        <div className="flex-1">
-          <Label htmlFor={`weight-${exercise.id}`} className="text-xs">Weight (lbs)</Label>
-          <Input
-            id={`weight-${exercise.id}`}
-            type="number"
-            placeholder="Weight"
-            value={weight}
-            onChange={(e) => setWeight(e.target.value)}
-            className="h-8"
-          />
-        </div>
-        <Button 
-          onClick={handleAddSet}
-          size="sm"
-          disabled={isLoading}
-          className="h-8"
-        >
-          <Plus className="h-3 w-3 mr-1" />
-          Add Set
-        </Button>
-      </div>
     </div>
   );
 }
