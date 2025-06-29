@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { Plus, Dumbbell, Edit, Trash2 } from 'lucide-react';
@@ -15,13 +14,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 interface Exercise {
   id: string;
   name: string;
-  muscle_group: string;
-  default_weight: number;
 }
-
-const muscleGroups = [
-  'Chest', 'Back', 'Shoulders', 'Arms', 'Legs', 'Core', 'Cardio', 'Full Body'
-];
 
 export default function Exercises() {
   const { user } = useAuth();
@@ -29,9 +22,7 @@ export default function Exercises() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingExercise, setEditingExercise] = useState<Exercise | null>(null);
   const [formData, setFormData] = useState({
-    name: '',
-    muscle_group: '',
-    default_weight: ''
+    name: ''
   });
 
   // Fetch exercises
@@ -58,9 +49,7 @@ export default function Exercises() {
         const { error } = await supabase
           .from('exercises')
           .update({
-            name: exercise.name,
-            muscle_group: exercise.muscle_group,
-            default_weight: exercise.default_weight
+            name: exercise.name
           })
           .eq('id', exercise.id);
         
@@ -71,9 +60,7 @@ export default function Exercises() {
           .from('exercises')
           .insert({
             user_id: user?.id,
-            name: exercise.name,
-            muscle_group: exercise.muscle_group,
-            default_weight: exercise.default_weight
+            name: exercise.name
           });
         
         if (error) throw error;
@@ -83,7 +70,7 @@ export default function Exercises() {
       queryClient.invalidateQueries({ queryKey: ['exercises'] });
       setIsDialogOpen(false);
       setEditingExercise(null);
-      setFormData({ name: '', muscle_group: '', default_weight: '' });
+      setFormData({ name: '' });
       toast.success(editingExercise ? 'Exercise updated!' : 'Exercise created!');
     },
     onError: (error: any) => {
@@ -113,25 +100,21 @@ export default function Exercises() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.name || !formData.muscle_group) {
-      toast.error('Please fill in all required fields');
+    if (!formData.name) {
+      toast.error('Please enter an exercise name');
       return;
     }
 
     saveExerciseMutation.mutate({
       id: editingExercise?.id,
-      name: formData.name,
-      muscle_group: formData.muscle_group,
-      default_weight: parseFloat(formData.default_weight) || 0
+      name: formData.name
     });
   };
 
   const handleEdit = (exercise: Exercise) => {
     setEditingExercise(exercise);
     setFormData({
-      name: exercise.name,
-      muscle_group: exercise.muscle_group,
-      default_weight: exercise.default_weight.toString()
+      name: exercise.name
     });
     setIsDialogOpen(true);
   };
@@ -143,7 +126,7 @@ export default function Exercises() {
   };
 
   const resetForm = () => {
-    setFormData({ name: '', muscle_group: '', default_weight: '' });
+    setFormData({ name: '' });
     setEditingExercise(null);
   };
 
@@ -193,37 +176,6 @@ export default function Exercises() {
                 />
               </div>
               
-              <div className="space-y-2">
-                <Label htmlFor="muscle_group">Muscle Group *</Label>
-                <Select 
-                  value={formData.muscle_group}
-                  onValueChange={(value) => setFormData({ ...formData, muscle_group: value })}
-                  required
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select muscle group" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {muscleGroups.map((group) => (
-                      <SelectItem key={group} value={group}>
-                        {group}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="default_weight">Default Weight (lbs)</Label>
-                <Input
-                  id="default_weight"
-                  type="number"
-                  placeholder="0"
-                  value={formData.default_weight}
-                  onChange={(e) => setFormData({ ...formData, default_weight: e.target.value })}
-                />
-              </div>
-              
               <div className="flex gap-2 pt-4">
                 <Button type="submit" disabled={saveExerciseMutation.isPending}>
                   {saveExerciseMutation.isPending 
@@ -266,7 +218,6 @@ export default function Exercises() {
                 <div className="flex justify-between items-start">
                   <div>
                     <CardTitle className="text-lg">{exercise.name}</CardTitle>
-                    <CardDescription>{exercise.muscle_group}</CardDescription>
                   </div>
                   <div className="flex gap-1">
                     <Button
@@ -287,11 +238,6 @@ export default function Exercises() {
                   </div>
                 </div>
               </CardHeader>
-              <CardContent>
-                <p className="text-sm text-gray-600">
-                  Default weight: {exercise.default_weight} lbs
-                </p>
-              </CardContent>
             </Card>
           ))}
         </div>
