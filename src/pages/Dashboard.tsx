@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Play, Square, Timer, Scale, Utensils } from 'lucide-react';
+import { Play, Square, Timer, Scale, Utensils, Plus } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 interface WorkoutRoutine {
@@ -27,6 +27,24 @@ interface WorkoutSession {
 interface DailyLog {
   weight: number | null;
   calories: number | null;
+}
+
+interface RoutineExercise {
+  exercise_id: string;
+  order_index: number;
+  exercises: {
+    id: string;
+    name: string;
+    muscle_group: string;
+  };
+}
+
+interface SetRecord {
+  id: string;
+  exercise_id: string;
+  set_number: number;
+  reps: number;
+  weight: number;
 }
 
 export default function Dashboard() {
@@ -89,6 +107,50 @@ export default function Dashboard() {
       return data as WorkoutSession | null;
     },
     enabled: !!user
+  });
+
+  // Fetch routine exercises for active session
+  const { data: routineExercises = [] } = useQuery({
+    queryKey: ['routine-exercises', activeSession?.routine_id],
+    queryFn: async () => {
+      if (!activeSession?.routine_id) return [];
+      
+      const { data, error } = await supabase
+        .from('routine_exercises')
+        .select(`
+          exercise_id,
+          order_index,
+          exercises (
+            id,
+            name,
+            muscle_group
+          )
+        `)
+        .eq('routine_id', activeSession.routine_id)
+        .order('order_index');
+      
+      if (error) throw error;
+      return data as RoutineExercise[];
+    },
+    enabled: !!activeSession?.routine_id
+  });
+
+  // Fetch existing set records for active session
+  const { data: setRecords = [] } = useQuery({
+    queryKey: ['set-records', activeSession?.id],
+    queryFn: async () => {
+      if (!activeSession?.id) return [];
+      
+      const { data, error } = await supabase
+        .from('set_records')
+        .select('*')
+        .eq('session_id', activeSession.id)
+        .order('exercise_id, set_number');
+      
+      if (error) throw error;
+      return data as SetRecord[];
+    },
+    enabled: !!activeSession?.id
   });
 
   useEffect(() => {
@@ -178,10 +240,42 @@ export default function Dashboard() {
       setActiveSession(null);
       setSessionStartTime(null);
       queryClient.invalidateQueries({ queryKey: ['active-session'] });
+      queryClient.invalidateQueries({ queryKey: ['set-records'] });
       toast.success(`Workout completed! Duration: ${duration} minutes 🎉`);
     },
     onError: (error) => {
       toast.error('Failed to end workout');
+      console.error(error);
+    }
+  });
+
+  // Add set record mutation
+  const addSetMutation = useMutation({
+    mutationFn: async ({ exerciseId, reps, weight }: { exerciseId: string; reps: number; weight: number }) => {
+      if (!activeSession?.id) return;
+      
+      // Get the next set number for this exercise
+      const existingSets = setRecords.filter(record => record.exercise_id === exerciseId);
+      const nextSetNumber = existingSets.length + 1;
+      
+      const { error } = await supabase
+        .from('set_records')
+        .insert({
+          session_id: activeSession.id,
+          exercise_id: exerciseId,
+          set_number: nextSetNumber,
+          reps,
+          weight
+        });
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['set-records'] });
+      toast.success('Set recorded!');
+    },
+    onError: (error) => {
+      toast.error('Failed to record set');
       console.error(error);
     }
   });
@@ -378,6 +472,33 @@ export default function Dashboard() {
         </div>
       </div>
 
+      {/* Exercise Logging Section - Only show when workout is active */}
+      {activeSession && routineExercises.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Log Your Sets</CardTitle>
+            <CardDescription>Record your performance for each exercise</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-6">
+              {routineExercises.map((routineExercise) => (
+                <ExerciseLogger
+                  key={routineExercise.exercise_id}
+                  exercise={routineExercise.exercises}
+                  setRecords={setRecords.filter(record => record.exercise_id === routineExercise.exercise_id)}
+                  onAddSet={(reps, weight) => addSetMutation.mutate({ 
+                    exerciseId: routineExercise.exercise_id, 
+                    reps, 
+                    weight 
+                  })}
+                  isLoading={addSetMutation.isPending}
+                />
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {routines.length === 0 && (
         <Card>
           <CardContent className="text-center py-8">
@@ -390,6 +511,96 @@ export default function Dashboard() {
           </CardContent>
         </Card>
       )}
+    </div>
+  );
+}
+
+interface ExerciseLoggerProps {
+  exercise: {
+    id: string;
+    name: string;
+    muscle_group: string;
+  };
+  setRecords: SetRecord[];
+  onAddSet: (reps: number, weight: number) => void;
+  isLoading: boolean;
+}
+
+function ExerciseLogger({ exercise, setRecords, onAddSet, isLoading }: ExerciseLoggerProps) {
+  const [reps, setReps] = useState('');
+  const [weight, setWeight] = useState('');
+
+  const handleAddSet = () => {
+    const repsValue = parseInt(reps);
+    const weightValue = parseFloat(weight);
+    
+    if (repsValue > 0 && weightValue >= 0) {
+      onAddSet(repsValue, weightValue);
+      setReps('');
+      setWeight('');
+    } else {
+      toast.error('Please enter valid reps and weight');
+    }
+  };
+
+  return (
+    <div className="border rounded-lg p-4">
+      <div className="flex justify-between items-start mb-4">
+        <div>
+          <h3 className="font-semibold text-lg">{exercise.name}</h3>
+          <p className="text-sm text-gray-600">{exercise.muscle_group}</p>
+        </div>
+      </div>
+
+      {/* Previous Sets */}
+      {setRecords.length > 0 && (
+        <div className="mb-4">
+          <h4 className="font-medium mb-2">Completed Sets:</h4>
+          <div className="space-y-1">
+            {setRecords.map((record) => (
+              <div key={record.id} className="flex justify-between text-sm bg-gray-50 p-2 rounded">
+                <span>Set {record.set_number}</span>
+                <span>{record.reps} reps × {record.weight} lbs</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Add New Set */}
+      <div className="flex gap-2 items-end">
+        <div className="flex-1">
+          <Label htmlFor={`reps-${exercise.id}`} className="text-xs">Reps</Label>
+          <Input
+            id={`reps-${exercise.id}`}
+            type="number"
+            placeholder="Reps"
+            value={reps}
+            onChange={(e) => setReps(e.target.value)}
+            className="h-8"
+          />
+        </div>
+        <div className="flex-1">
+          <Label htmlFor={`weight-${exercise.id}`} className="text-xs">Weight (lbs)</Label>
+          <Input
+            id={`weight-${exercise.id}`}
+            type="number"
+            placeholder="Weight"
+            value={weight}
+            onChange={(e) => setWeight(e.target.value)}
+            className="h-8"
+          />
+        </div>
+        <Button 
+          onClick={handleAddSet}
+          size="sm"
+          disabled={isLoading}
+          className="h-8"
+        >
+          <Plus className="h-3 w-3 mr-1" />
+          Add Set
+        </Button>
+      </div>
     </div>
   );
 }
