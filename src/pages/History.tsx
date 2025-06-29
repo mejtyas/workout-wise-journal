@@ -20,6 +20,7 @@ interface WorkoutSession {
     name: string;
   } | null;
   set_records: {
+    id: string;
     exercise_id: string;
     set_number: number;
     reps: number;
@@ -47,6 +48,7 @@ export default function History() {
           *,
           workout_routines (name),
           set_records (
+            id,
             exercise_id,
             set_number,
             reps,
