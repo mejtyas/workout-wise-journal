@@ -134,57 +134,69 @@ export default function Workouts() {
         </div>
       ) : (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {routines?.map((routine) => (
-            <Card key={routine.id} className="hover:shadow-lg transition-shadow">
-              <CardHeader>
-                <div className="flex justify-between items-start">
-                  <div>
-                    <CardTitle className="text-xl">{routine.name}</CardTitle>
-                    <CardDescription>
-                      {routine.routine_exercises.length} exercise{routine.routine_exercises.length !== 1 ? 's' : ''}
-                    </CardDescription>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleEditRoutine(routine)}
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleDeleteRoutine(routine.id)}
-                      className="text-red-600 hover:text-red-700"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  {routine.routine_exercises
-                    .sort((a, b) => a.order_index - b.order_index)
-                    .slice(0, 4)
-                    .map((routineExercise, index) => (
-                      <div key={index} className="flex justify-between items-center text-sm">
-                        <span className="font-medium">{routineExercise.exercises.name}</span>
-                        <span className="text-gray-500 text-xs">
-                          {routineExercise.exercises.muscle_group}
-                        </span>
-                      </div>
-                    ))}
-                  {routine.routine_exercises.length > 4 && (
-                    <div className="text-sm text-gray-500 text-center pt-2">
-                      +{routine.routine_exercises.length - 4} more exercises
+          {routines?.map((routine) => {
+            const exerciseCount = routine.routine_exercises?.length || 0;
+            
+            return (
+              <Card key={routine.id} className="hover:shadow-lg transition-shadow">
+                <CardHeader>
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <CardTitle className="text-xl">{routine.name}</CardTitle>
+                      <CardDescription>
+                        {exerciseCount} exercise{exerciseCount !== 1 ? 's' : ''}
+                      </CardDescription>
                     </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleEditRoutine(routine)}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDeleteRoutine(routine.id)}
+                        className="text-red-600 hover:text-red-700"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    {routine.routine_exercises && routine.routine_exercises.length > 0 ? (
+                      <>
+                        {routine.routine_exercises
+                          .sort((a, b) => a.order_index - b.order_index)
+                          .slice(0, 4)
+                          .map((routineExercise, index) => (
+                            <div key={index} className="flex justify-between items-center text-sm">
+                              <span className="font-medium">{routineExercise.exercises.name}</span>
+                              <span className="text-gray-500 text-xs">
+                                {routineExercise.exercises.muscle_group}
+                              </span>
+                            </div>
+                          ))}
+                        {routine.routine_exercises.length > 4 && (
+                          <div className="text-sm text-gray-500 text-center pt-2">
+                            +{routine.routine_exercises.length - 4} more exercises
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <div className="text-sm text-gray-500 text-center">
+                        No exercises added yet
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       )}
 
