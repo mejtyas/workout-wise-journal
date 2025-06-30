@@ -3,8 +3,11 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Plus } from 'lucide-react';
+import { Plus, TrendingUp } from 'lucide-react';
 import { toast } from 'sonner';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 
 interface SetRecord {
   id: string;
@@ -26,8 +29,66 @@ interface ExerciseLoggerProps {
 }
 
 export function ExerciseLogger({ exercise, setRecords, onAddSet, isLoading }: ExerciseLoggerProps) {
+  const { user } = useAuth();
   const [reps, setReps] = useState('');
   const [weight, setWeight] = useState('');
+
+  // Fetch previous performance for this exercise
+  const { data: previousPerformance } = useQuery({
+    queryKey: ['previous-performance', exercise.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('set_records')
+        .select(`
+          reps,
+          weight,
+          workout_sessions!inner (
+            date,
+            user_id
+          )
+        `)
+        .eq('exercise_id', exercise.id)
+        .eq('workout_sessions.user_id', user?.id)
+        .order('workout_sessions.date', { ascending: false })
+        .limit(20);
+      
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user && !!exercise.id
+  });
+
+  // Get the best set from the most recent workout
+  const getLastBestSet = () => {
+    if (!previousPerformance || previousPerformance.length === 0) return null;
+    
+    // Group by date to get the most recent workout
+    const groupedByDate = previousPerformance.reduce((acc, record) => {
+      const date = record.workout_sessions.date;
+      if (!acc[date]) acc[date] = [];
+      acc[date].push(record);
+      return acc;
+    }, {} as Record<string, typeof previousPerformance>);
+
+    const dates = Object.keys(groupedByDate).sort().reverse();
+    if (dates.length === 0) return null;
+
+    const lastWorkout = groupedByDate[dates[0]];
+    
+    // Find the best set (highest weight, or if same weight, highest reps)
+    const bestSet = lastWorkout.reduce((best, current) => {
+      if (current.weight > best.weight) return current;
+      if (current.weight === best.weight && current.reps > best.reps) return current;
+      return best;
+    });
+
+    return {
+      ...bestSet,
+      date: dates[0]
+    };
+  };
+
+  const lastBestSet = getLastBestSet();
 
   const handleAddSet = () => {
     const repsValue = parseInt(reps);
@@ -42,19 +103,42 @@ export function ExerciseLogger({ exercise, setRecords, onAddSet, isLoading }: Ex
     }
   };
 
+  const getProgressIndicator = () => {
+    if (!lastBestSet) return null;
+    
+    const currentWeight = parseFloat(weight);
+    const currentReps = parseInt(reps);
+    
+    if (!currentWeight || !currentReps) return null;
+    
+    const isProgressing = currentWeight > lastBestSet.weight || 
+                         (currentWeight === lastBestSet.weight && currentReps > lastBestSet.reps);
+    
+    return isProgressing ? (
+      <TrendingUp className="h-4 w-4 text-green-500" />
+    ) : null;
+  };
+
   return (
     <div className="border rounded-lg p-4">
       <div className="flex justify-between items-start mb-4">
         <div>
           <h3 className="font-semibold text-lg">{exercise.name}</h3>
-          <p className="text-sm text-gray-600">{exercise.muscle_group}</p>
+          {lastBestSet && (
+            <div className="text-sm text-gray-600 mt-1">
+              <div className="flex items-center gap-2">
+                <span>Last best: {lastBestSet.reps} reps × {lastBestSet.weight} kg</span>
+                <span className="text-xs text-gray-500">({new Date(lastBestSet.date).toLocaleDateString()})</span>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
       {/* Previous Sets */}
       {setRecords.length > 0 && (
         <div className="mb-4">
-          <h4 className="font-medium mb-2">Completed Sets:</h4>
+          <h4 className="font-medium mb-2">Today's Sets:</h4>
           <div className="space-y-1">
             {setRecords.map((record) => (
               <div key={record.id} className="flex justify-between text-sm bg-gray-50 p-2 rounded">
@@ -73,7 +157,7 @@ export function ExerciseLogger({ exercise, setRecords, onAddSet, isLoading }: Ex
           <Input
             id={`reps-${exercise.id}`}
             type="number"
-            placeholder="Reps"
+            placeholder={lastBestSet ? `Last: ${lastBestSet.reps}` : "Reps"}
             value={reps}
             onChange={(e) => setReps(e.target.value)}
             className="h-8"
@@ -84,7 +168,7 @@ export function ExerciseLogger({ exercise, setRecords, onAddSet, isLoading }: Ex
           <Input
             id={`weight-${exercise.id}`}
             type="number"
-            placeholder="Weight"
+            placeholder={lastBestSet ? `Last: ${lastBestSet.weight}` : "Weight"}
             value={weight}
             onChange={(e) => setWeight(e.target.value)}
             className="h-8"
@@ -94,10 +178,11 @@ export function ExerciseLogger({ exercise, setRecords, onAddSet, isLoading }: Ex
           onClick={handleAddSet}
           size="sm"
           disabled={isLoading}
-          className="h-8"
+          className="h-8 flex items-center gap-1"
         >
-          <Plus className="h-3 w-3 mr-1" />
+          <Plus className="h-3 w-3" />
           Add Set
+          {getProgressIndicator()}
         </Button>
       </div>
     </div>
