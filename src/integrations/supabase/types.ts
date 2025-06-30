@@ -41,7 +41,7 @@ export type Database = {
           created_at: string | null
           default_weight: number | null
           id: string
-          muscle_group: string
+          muscle_group: string | null
           name: string
           user_id: string
         }
@@ -49,7 +49,7 @@ export type Database = {
           created_at?: string | null
           default_weight?: number | null
           id?: string
-          muscle_group: string
+          muscle_group?: string | null
           name: string
           user_id: string
         }
@@ -57,7 +57,7 @@ export type Database = {
           created_at?: string | null
           default_weight?: number | null
           id?: string
-          muscle_group?: string
+          muscle_group?: string | null
           name?: string
           user_id?: string
         }
