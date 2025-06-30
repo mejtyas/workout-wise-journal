@@ -37,30 +37,43 @@ export function ExerciseLogger({ exercise, setRecords, onAddSet, isLoading }: Ex
   const { data: previousPerformance } = useQuery({
     queryKey: ['previous-performance', exercise.id],
     queryFn: async () => {
+      console.log('Fetching previous performance for exercise:', exercise.id);
+      
       const { data, error } = await supabase
         .from('set_records')
         .select(`
           reps,
           weight,
+          created_at,
           workout_sessions!inner (
             date,
-            user_id
+            user_id,
+            end_time
           )
         `)
         .eq('exercise_id', exercise.id)
         .eq('workout_sessions.user_id', user?.id)
+        .not('workout_sessions.end_time', 'is', null)
         .order('workout_sessions.date', { ascending: false })
-        .limit(20);
+        .limit(50);
       
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching previous performance:', error);
+        throw error;
+      }
+      
+      console.log('Previous performance data:', data);
       return data;
     },
     enabled: !!user && !!exercise.id
   });
 
-  // Get the best set from the most recent workout
+  // Get the best set from the most recent completed workout
   const getLastBestSet = () => {
-    if (!previousPerformance || previousPerformance.length === 0) return null;
+    if (!previousPerformance || previousPerformance.length === 0) {
+      console.log('No previous performance data');
+      return null;
+    }
     
     // Group by date to get the most recent workout
     const groupedByDate = previousPerformance.reduce((acc, record) => {
@@ -82,10 +95,13 @@ export function ExerciseLogger({ exercise, setRecords, onAddSet, isLoading }: Ex
       return best;
     });
 
-    return {
+    const result = {
       ...bestSet,
       date: dates[0]
     };
+    
+    console.log('Last best set:', result);
+    return result;
   };
 
   const lastBestSet = getLastBestSet();
@@ -135,6 +151,13 @@ export function ExerciseLogger({ exercise, setRecords, onAddSet, isLoading }: Ex
           <div className="text-xs text-gray-500">
             {new Date(lastBestSet.date).toLocaleDateString()}
           </div>
+        </div>
+      )}
+
+      {/* Show message if no previous data */}
+      {!lastBestSet && (
+        <div className="text-center mb-4 p-3 bg-blue-50 rounded-lg">
+          <div className="text-sm text-blue-600">First time doing this exercise!</div>
         </div>
       )}
 
