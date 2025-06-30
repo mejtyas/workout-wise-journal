@@ -121,19 +121,22 @@ export function ExerciseLogger({ exercise, setRecords, onAddSet, isLoading }: Ex
 
   return (
     <div className="border rounded-lg p-4">
-      <div className="flex justify-between items-start mb-4">
-        <div>
-          <h3 className="font-semibold text-lg">{exercise.name}</h3>
-          {lastBestSet && (
-            <div className="text-sm text-gray-600 mt-1">
-              <div className="flex items-center gap-2">
-                <span>Last best: {lastBestSet.reps} reps × {lastBestSet.weight} kg</span>
-                <span className="text-xs text-gray-500">({new Date(lastBestSet.date).toLocaleDateString()})</span>
-              </div>
-            </div>
-          )}
-        </div>
+      <div className="mb-4">
+        <h3 className="font-semibold text-lg">{exercise.name}</h3>
       </div>
+
+      {/* Previous Performance - Centered Display */}
+      {lastBestSet && (
+        <div className="text-center mb-4 p-3 bg-gray-50 rounded-lg">
+          <div className="text-sm text-gray-600 mb-1">Previous Best</div>
+          <div className="font-medium text-lg">
+            {lastBestSet.reps} reps × {lastBestSet.weight} kg
+          </div>
+          <div className="text-xs text-gray-500">
+            {new Date(lastBestSet.date).toLocaleDateString()}
+          </div>
+        </div>
+      )}
 
       {/* Previous Sets */}
       {setRecords.length > 0 && (
@@ -157,7 +160,7 @@ export function ExerciseLogger({ exercise, setRecords, onAddSet, isLoading }: Ex
           <Input
             id={`reps-${exercise.id}`}
             type="number"
-            placeholder={lastBestSet ? `Last: ${lastBestSet.reps}` : "Reps"}
+            placeholder="Reps"
             value={reps}
             onChange={(e) => setReps(e.target.value)}
             className="h-8"
@@ -168,7 +171,7 @@ export function ExerciseLogger({ exercise, setRecords, onAddSet, isLoading }: Ex
           <Input
             id={`weight-${exercise.id}`}
             type="number"
-            placeholder={lastBestSet ? `Last: ${lastBestSet.weight}` : "Weight"}
+            placeholder="Weight"
             value={weight}
             onChange={(e) => setWeight(e.target.value)}
             className="h-8"
