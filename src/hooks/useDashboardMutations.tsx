@@ -1,3 +1,4 @@
+
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -20,31 +21,23 @@ export function useDashboardMutations() {
     mutationFn: async ({ weight, calories }: { weight?: number; calories?: number }) => {
       const today = new Date().toISOString().split('T')[0];
       
-      // First try to get existing record
-      const { data: existingData } = await supabase
-        .from('daily_logs')
-        .select('*')
-        .eq('user_id', user?.id)
-        .eq('date', today)
-        .maybeSingle();
-
       const updateData: any = {
         user_id: user?.id,
         date: today,
       };
 
-      // Keep existing values and only update the provided field
-      if (existingData) {
-        updateData.weight = weight !== undefined ? weight : existingData.weight;
-        updateData.calories = calories !== undefined ? calories : existingData.calories;
-      } else {
+      if (weight !== undefined) {
         updateData.weight = weight;
+      }
+      if (calories !== undefined) {
         updateData.calories = calories;
       }
 
       const { error } = await supabase
         .from('daily_logs')
-        .upsert(updateData);
+        .upsert(updateData, {
+          onConflict: 'user_id,date'
+        });
       
       if (error) throw error;
     },
