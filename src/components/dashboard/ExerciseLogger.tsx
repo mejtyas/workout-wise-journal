@@ -54,7 +54,7 @@ export function ExerciseLogger({ exercise, setRecords, onAddSet, isLoading }: Ex
         .eq('exercise_id', exercise.id)
         .eq('workout_sessions.user_id', user?.id)
         .not('workout_sessions.end_time', 'is', null)
-        .order('workout_sessions.date', { ascending: false })
+        .order('created_at', { ascending: false })
         .limit(50);
       
       if (error) {
