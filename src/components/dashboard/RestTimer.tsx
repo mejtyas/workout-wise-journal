@@ -10,7 +10,9 @@ interface RestTimerProps {
 }
 
 export function RestTimer({ timeLeft, isActive, formatTime, onStop }: RestTimerProps) {
-  if (!isActive && timeLeft === 0) return null;
+  // Only hide the timer if time has reached 0 AND it's not active
+  // This ensures it stays visible during navigation until timer completes
+  if (timeLeft === 0 && !isActive) return null;
 
   return (
     <div className="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
