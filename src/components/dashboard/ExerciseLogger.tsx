@@ -133,7 +133,7 @@ export function ExerciseLogger({
     const isProgressing = currentWeight > lastSet.weight || currentWeight === lastSet.weight && currentReps > lastSet.reps;
     return isProgressing ? <TrendingUp className="h-4 w-4 text-green-500" /> : null;
   };
-  return <div className="border rounded-lg p-4">
+  return <div className="border rounded-lg sm:p-4">
       <div className="mb-4">
         <h3 className="font-semibold text-lg">{exercise.name}</h3>
       </div>
