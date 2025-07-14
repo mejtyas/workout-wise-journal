@@ -53,7 +53,7 @@ export default function Layout() {
               </div>
             </div>
             <div className="flex items-center space-x-4">
-              <span className="text-sm text-gray-600 max-sm:hidden ">
+              <span className="text-sm text-gray-600 max-lg:hidden ">
                 Welcome, {user?.user_metadata?.name || user?.email}
               </span>
               <Button variant="outline" size="sm" onClick={handleSignOut}>
