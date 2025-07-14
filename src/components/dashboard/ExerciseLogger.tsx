@@ -173,7 +173,7 @@ export function ExerciseLogger({
 
       {/* Add New Set */}
       <div className="flex gap-2 items-end flex-wrap">
-        <div className="sm:flex-1">
+        <div className="flex-1">
           <Label htmlFor={`weight-${exercise.id}`} className="text-xs">Weight (kg)</Label>
           <Input id={`weight-${exercise.id}`} type="number" placeholder="Weight" value={weight} onChange={e => setWeight(e.target.value)} className="h-8" />
         </div>
