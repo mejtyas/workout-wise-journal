@@ -181,7 +181,7 @@ export function ExerciseLogger({
           <Label htmlFor={`reps-${exercise.id}`} className="text-xs">Reps</Label>
           <Input id={`reps-${exercise.id}`} type="number" placeholder="Reps" value={reps} onChange={e => setReps(e.target.value)} className="h-8" />
         </div>
-        <Button onClick={handleAddSet} size="sm" disabled={isLoading} className="h-8 flex items-center gap-1 max-w-sm:min-w-24 ">
+        <Button onClick={handleAddSet} size="sm" disabled={isLoading} className="h-8 flex items-center gap-1 max-sm:w-full">
           <Plus className="h-3 w-3" />
           Add Set
           {getProgressIndicator()}
