@@ -177,7 +177,7 @@ export function ExerciseLogger({
           <Label htmlFor={`weight-${exercise.id}`} className="text-xs">Weight (kg)</Label>
           <Input id={`weight-${exercise.id}`} type="number" placeholder="Weight" value={weight} onChange={e => setWeight(e.target.value)} className="h-8" />
         </div>
-        <div className="max-sm:w-1/2">
+        <div className="max-sm:w-[45%]">
           <Label htmlFor={`reps-${exercise.id}`} className="text-xs">Reps</Label>
           <Input id={`reps-${exercise.id}`} type="number" placeholder="Reps" value={reps} onChange={e => setReps(e.target.value)} className="h-8" />
         </div>
