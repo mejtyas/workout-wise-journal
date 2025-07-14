@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,6 +7,8 @@ import { toast } from 'sonner';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { useRestTimer } from '@/hooks/useRestTimer';
+import { RestTimer } from './RestTimer';
 
 interface SetRecord {
   id: string;
@@ -32,6 +33,7 @@ export function ExerciseLogger({ exercise, setRecords, onAddSet, isLoading }: Ex
   const { user } = useAuth();
   const [reps, setReps] = useState('');
   const [weight, setWeight] = useState('');
+  const { timeLeft, isActive, startTimer, stopTimer, formatTime } = useRestTimer();
 
   // Fetch previous performance for this exercise
   const { data: previousPerformance } = useQuery({
@@ -114,6 +116,9 @@ export function ExerciseLogger({ exercise, setRecords, onAddSet, isLoading }: Ex
       onAddSet(repsValue, weightValue);
       setReps('');
       setWeight('');
+      
+      // Start rest timer after adding a set
+      startTimer(150); // 2:30 = 150 seconds
     } else {
       toast.error('Please enter valid reps and weight');
     }
@@ -140,6 +145,14 @@ export function ExerciseLogger({ exercise, setRecords, onAddSet, isLoading }: Ex
       <div className="mb-4">
         <h3 className="font-semibold text-lg">{exercise.name}</h3>
       </div>
+
+      {/* Rest Timer */}
+      <RestTimer
+        timeLeft={timeLeft}
+        isActive={isActive}
+        formatTime={formatTime}
+        onStop={stopTimer}
+      />
 
       {/* Previous Performance - Centered Display */}
       {lastBestSet && (
