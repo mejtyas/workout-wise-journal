@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
+import { ChevronUp, ChevronDown } from 'lucide-react';
 
 interface RoutineExercise {
   exercise_id: string;
@@ -41,19 +42,37 @@ export default function EditRoutineDialog({ routine, open, onOpenChange }: EditR
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [routineName, setRoutineName] = useState(routine.name);
+  const [exercises, setExercises] = useState<RoutineExercise[]>([]);
 
   useEffect(() => {
     setRoutineName(routine.name);
+    setExercises([...routine.routine_exercises].sort((a, b) => a.order_index - b.order_index));
   }, [routine]);
 
   const updateRoutineMutation = useMutation({
     mutationFn: async () => {
+      // Update routine name
       const { error: routineError } = await supabase
         .from('workout_routines')
         .update({ name: routineName })
         .eq('id', routine.id);
 
       if (routineError) throw routineError;
+
+      // Update exercise order
+      const updatePromises = exercises.map((exercise, index) =>
+        supabase
+          .from('routine_exercises')
+          .update({ order_index: index })
+          .eq('routine_id', routine.id)
+          .eq('exercise_id', exercise.exercise_id)
+      );
+
+      const results = await Promise.all(updatePromises);
+      const errors = results.filter(result => result.error);
+      if (errors.length > 0) {
+        throw errors[0].error;
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['routines'] });
@@ -71,6 +90,15 @@ export default function EditRoutineDialog({ routine, open, onOpenChange }: EditR
       });
     },
   });
+
+  const moveExercise = (fromIndex: number, toIndex: number) => {
+    if (toIndex < 0 || toIndex >= exercises.length) return;
+    
+    const newExercises = [...exercises];
+    const [movedExercise] = newExercises.splice(fromIndex, 1);
+    newExercises.splice(toIndex, 0, movedExercise);
+    setExercises(newExercises);
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -91,7 +119,7 @@ export default function EditRoutineDialog({ routine, open, onOpenChange }: EditR
         <DialogHeader>
           <DialogTitle>Edit Routine</DialogTitle>
           <DialogDescription>
-            Update your routine name. Exercise performance will be recorded during workouts.
+            Update your routine name and reorder exercises.
           </DialogDescription>
         </DialogHeader>
 
@@ -108,14 +136,36 @@ export default function EditRoutineDialog({ routine, open, onOpenChange }: EditR
 
           <div className="space-y-4">
             <Label>Exercises in this routine</Label>
-            {routine.routine_exercises
-              .sort((a, b) => a.order_index - b.order_index)
-              .map((exercise) => (
-                <div key={exercise.exercise_id} className="border rounded-lg p-4">
+            {exercises.map((exercise, index) => (
+              <div key={exercise.exercise_id} className="border rounded-lg p-4 flex items-center justify-between">
+                <div className="flex-1">
                   <div className="font-medium">{exercise.exercises.name}</div>
                   <div className="text-sm text-gray-500">{exercise.exercises.muscle_group}</div>
                 </div>
-              ))}
+                <div className="flex flex-col gap-1">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => moveExercise(index, index - 1)}
+                    disabled={index === 0}
+                    className="h-8 w-8 p-0"
+                  >
+                    <ChevronUp className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => moveExercise(index, index + 1)}
+                    disabled={index === exercises.length - 1}
+                    className="h-8 w-8 p-0"
+                  >
+                    <ChevronDown className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            ))}
           </div>
 
           <div className="flex justify-end gap-3">
