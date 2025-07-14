@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -159,7 +160,7 @@ export function ExerciseLogger({ exercise, setRecords, onAddSet, isLoading }: Ex
         <div className="text-center mb-4 p-3 bg-gray-50 rounded-lg">
           <div className="text-sm text-gray-600 mb-1">Previous Best</div>
           <div className="font-medium text-lg">
-            {lastBestSet.reps} reps × {lastBestSet.weight} kg
+            {lastBestSet.weight} kg × {lastBestSet.reps} reps
           </div>
           <div className="text-xs text-gray-500">
             {new Date(lastBestSet.date).toLocaleDateString()}
@@ -182,7 +183,7 @@ export function ExerciseLogger({ exercise, setRecords, onAddSet, isLoading }: Ex
             {setRecords.map((record) => (
               <div key={record.id} className="flex justify-between text-sm bg-gray-50 p-2 rounded">
                 <span>Set {record.set_number}</span>
-                <span>{record.reps} reps × {record.weight} kg</span>
+                <span>{record.weight} kg × {record.reps} reps</span>
               </div>
             ))}
           </div>
@@ -192,17 +193,6 @@ export function ExerciseLogger({ exercise, setRecords, onAddSet, isLoading }: Ex
       {/* Add New Set */}
       <div className="flex gap-2 items-end">
         <div className="flex-1">
-          <Label htmlFor={`reps-${exercise.id}`} className="text-xs">Reps</Label>
-          <Input
-            id={`reps-${exercise.id}`}
-            type="number"
-            placeholder="Reps"
-            value={reps}
-            onChange={(e) => setReps(e.target.value)}
-            className="h-8"
-          />
-        </div>
-        <div className="flex-1">
           <Label htmlFor={`weight-${exercise.id}`} className="text-xs">Weight (kg)</Label>
           <Input
             id={`weight-${exercise.id}`}
@@ -210,6 +200,17 @@ export function ExerciseLogger({ exercise, setRecords, onAddSet, isLoading }: Ex
             placeholder="Weight"
             value={weight}
             onChange={(e) => setWeight(e.target.value)}
+            className="h-8"
+          />
+        </div>
+        <div className="flex-1">
+          <Label htmlFor={`reps-${exercise.id}`} className="text-xs">Reps</Label>
+          <Input
+            id={`reps-${exercise.id}`}
+            type="number"
+            placeholder="Reps"
+            value={reps}
+            onChange={(e) => setReps(e.target.value)}
             className="h-8"
           />
         </div>
