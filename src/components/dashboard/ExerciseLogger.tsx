@@ -47,6 +47,7 @@ export function ExerciseLogger({ exercise, setRecords, onAddSet, isLoading }: Ex
         .select(`
           reps,
           weight,
+          set_number,
           created_at,
           workout_sessions!inner (
             date,
@@ -71,11 +72,11 @@ export function ExerciseLogger({ exercise, setRecords, onAddSet, isLoading }: Ex
     enabled: !!user && !!exercise.id
   });
 
-  // Get the best set from the most recent completed workout
-  const getLastBestSet = () => {
+  // Get the last 2 sets from the most recent completed workout
+  const getLastTwoSets = () => {
     if (!previousPerformance || previousPerformance.length === 0) {
       console.log('No previous performance data');
-      return null;
+      return [];
     }
     
     // Group by date to get the most recent workout
@@ -87,27 +88,24 @@ export function ExerciseLogger({ exercise, setRecords, onAddSet, isLoading }: Ex
     }, {} as Record<string, typeof previousPerformance>);
 
     const dates = Object.keys(groupedByDate).sort().reverse();
-    if (dates.length === 0) return null;
+    if (dates.length === 0) return [];
 
     const lastWorkout = groupedByDate[dates[0]];
     
-    // Find the best set (highest weight, or if same weight, highest reps)
-    const bestSet = lastWorkout.reduce((best, current) => {
-      if (current.weight > best.weight) return current;
-      if (current.weight === best.weight && current.reps > best.reps) return current;
-      return best;
-    });
-
-    const result = {
-      ...bestSet,
-      date: dates[0]
-    };
+    // Sort by set number and get the last 2 sets
+    const sortedSets = lastWorkout.sort((a, b) => b.set_number - a.set_number);
+    const lastTwoSets = sortedSets.slice(0, 2).reverse(); // Reverse to show in chronological order
     
-    console.log('Last best set:', result);
+    const result = lastTwoSets.map(set => ({
+      ...set,
+      date: dates[0]
+    }));
+    
+    console.log('Last two sets:', result);
     return result;
   };
 
-  const lastBestSet = getLastBestSet();
+  const lastTwoSets = getLastTwoSets();
 
   const handleAddSet = () => {
     const repsValue = parseInt(reps);
@@ -126,15 +124,17 @@ export function ExerciseLogger({ exercise, setRecords, onAddSet, isLoading }: Ex
   };
 
   const getProgressIndicator = () => {
-    if (!lastBestSet) return null;
+    if (lastTwoSets.length === 0) return null;
     
     const currentWeight = parseFloat(weight);
     const currentReps = parseInt(reps);
     
     if (!currentWeight || !currentReps) return null;
     
-    const isProgressing = currentWeight > lastBestSet.weight || 
-                         (currentWeight === lastBestSet.weight && currentReps > lastBestSet.reps);
+    // Compare with the last set (most recent)
+    const lastSet = lastTwoSets[lastTwoSets.length - 1];
+    const isProgressing = currentWeight > lastSet.weight || 
+                         (currentWeight === lastSet.weight && currentReps > lastSet.reps);
     
     return isProgressing ? (
       <TrendingUp className="h-4 w-4 text-green-500" />
@@ -155,21 +155,26 @@ export function ExerciseLogger({ exercise, setRecords, onAddSet, isLoading }: Ex
         onStop={stopTimer}
       />
 
-      {/* Previous Performance - Centered Display */}
-      {lastBestSet && (
+      {/* Previous Performance - Last 2 Sets */}
+      {lastTwoSets.length > 0 && (
         <div className="text-center mb-4 p-3 bg-gray-50 rounded-lg">
-          <div className="text-sm text-gray-600 mb-1">Previous Best</div>
-          <div className="font-medium text-lg">
-            {lastBestSet.weight} kg × {lastBestSet.reps} reps
+          <div className="text-sm text-gray-600 mb-2">Previous Sets</div>
+          <div className="space-y-1">
+            {lastTwoSets.map((set, index) => (
+              <div key={index} className="font-medium">
+                <span className="text-sm text-gray-500">Set {set.set_number}: </span>
+                {set.weight} kg × {set.reps} reps
+              </div>
+            ))}
           </div>
-          <div className="text-xs text-gray-500">
-            {new Date(lastBestSet.date).toLocaleDateString()}
+          <div className="text-xs text-gray-500 mt-1">
+            {new Date(lastTwoSets[0].date).toLocaleDateString()}
           </div>
         </div>
       )}
 
       {/* Show message if no previous data */}
-      {!lastBestSet && (
+      {lastTwoSets.length === 0 && (
         <div className="text-center mb-4 p-3 bg-blue-50 rounded-lg">
           <div className="text-sm text-blue-600">First time doing this exercise!</div>
         </div>
