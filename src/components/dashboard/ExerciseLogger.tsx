@@ -172,12 +172,12 @@ export function ExerciseLogger({
         </div>}
 
       {/* Add New Set */}
-      <div className="flex gap-2 items-end max-sm:flex-wrap ">
-        <div className="flex-1">
+      <div className="flex gap-2 items-end flex-wrap">
+        <div className="">
           <Label htmlFor={`weight-${exercise.id}`} className="text-xs">Weight (kg)</Label>
           <Input id={`weight-${exercise.id}`} type="number" placeholder="Weight" value={weight} onChange={e => setWeight(e.target.value)} className="h-8" />
         </div>
-        <div className="flex-1">
+        <div className="max-sm:w-full">
           <Label htmlFor={`reps-${exercise.id}`} className="text-xs">Reps</Label>
           <Input id={`reps-${exercise.id}`} type="number" placeholder="Reps" value={reps} onChange={e => setReps(e.target.value)} className="h-8" />
         </div>
