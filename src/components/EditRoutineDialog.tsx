@@ -13,7 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { ChevronUp, ChevronDown } from 'lucide-react';
+import { ChevronUp, ChevronDown, X } from 'lucide-react';
 
 interface RoutineExercise {
   exercise_id: string;
@@ -91,6 +91,32 @@ export default function EditRoutineDialog({ routine, open, onOpenChange }: EditR
     },
   });
 
+  const removeExerciseMutation = useMutation({
+    mutationFn: async (exerciseId: string) => {
+      const { error } = await supabase
+        .from('routine_exercises')
+        .delete()
+        .eq('routine_id', routine.id)
+        .eq('exercise_id', exerciseId);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['routines'] });
+      toast({
+        title: "Success",
+        description: "Exercise removed from routine",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to remove exercise",
+        variant: "destructive",
+      });
+    },
+  });
+
   const moveExercise = (fromIndex: number, toIndex: number) => {
     if (toIndex < 0 || toIndex >= exercises.length) return;
     
@@ -98,6 +124,15 @@ export default function EditRoutineDialog({ routine, open, onOpenChange }: EditR
     const [movedExercise] = newExercises.splice(fromIndex, 1);
     newExercises.splice(toIndex, 0, movedExercise);
     setExercises(newExercises);
+  };
+
+  const removeExercise = (exerciseId: string) => {
+    if (confirm('Are you sure you want to remove this exercise from the routine?')) {
+      // Remove from local state
+      setExercises(prev => prev.filter(ex => ex.exercise_id !== exerciseId));
+      // Remove from database
+      removeExerciseMutation.mutate(exerciseId);
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -142,26 +177,37 @@ export default function EditRoutineDialog({ routine, open, onOpenChange }: EditR
                   <div className="font-medium">{exercise.exercises.name}</div>
                   <div className="text-sm text-gray-500">{exercise.exercises.muscle_group}</div>
                 </div>
-                <div className="flex flex-col gap-1">
+                <div className="flex items-center gap-2">
+                  <div className="flex flex-col gap-1">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => moveExercise(index, index - 1)}
+                      disabled={index === 0}
+                      className="h-8 w-8 p-0"
+                    >
+                      <ChevronUp className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => moveExercise(index, index + 1)}
+                      disabled={index === exercises.length - 1}
+                      className="h-8 w-8 p-0"
+                    >
+                      <ChevronDown className="h-4 w-4" />
+                    </Button>
+                  </div>
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
-                    onClick={() => moveExercise(index, index - 1)}
-                    disabled={index === 0}
-                    className="h-8 w-8 p-0"
+                    onClick={() => removeExercise(exercise.exercise_id)}
+                    className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
                   >
-                    <ChevronUp className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => moveExercise(index, index + 1)}
-                    disabled={index === exercises.length - 1}
-                    className="h-8 w-8 p-0"
-                  >
-                    <ChevronDown className="h-4 w-4" />
+                    <X className="h-4 w-4" />
                   </Button>
                 </div>
               </div>
