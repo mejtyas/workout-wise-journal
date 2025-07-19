@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -14,6 +13,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { ChevronUp, ChevronDown, X } from 'lucide-react';
+import { AddExerciseToRoutine } from './AddExerciseToRoutine';
 
 interface RoutineExercise {
   exercise_id: string;
@@ -154,7 +154,7 @@ export default function EditRoutineDialog({ routine, open, onOpenChange }: EditR
         <DialogHeader>
           <DialogTitle>Edit Routine</DialogTitle>
           <DialogDescription>
-            Update your routine name and reorder exercises.
+            Update your routine name, add exercises, and reorder exercises.
           </DialogDescription>
         </DialogHeader>
 
@@ -170,7 +170,15 @@ export default function EditRoutineDialog({ routine, open, onOpenChange }: EditR
           </div>
 
           <div className="space-y-4">
-            <Label>Exercises in this routine</Label>
+            <div className="flex justify-between items-center">
+              <Label>Exercises in this routine</Label>
+            </div>
+            
+            <AddExerciseToRoutine 
+              routineId={routine.id}
+              existingExerciseIds={exercises.map(ex => ex.exercise_id)}
+            />
+
             {exercises.map((exercise, index) => (
               <div key={exercise.exercise_id} className="border rounded-lg p-4 flex items-center justify-between">
                 <div className="flex-1">
@@ -212,6 +220,12 @@ export default function EditRoutineDialog({ routine, open, onOpenChange }: EditR
                 </div>
               </div>
             ))}
+
+            {exercises.length === 0 && (
+              <div className="text-center py-8 text-gray-500">
+                No exercises in this routine yet. Add some exercises above to get started.
+              </div>
+            )}
           </div>
 
           <div className="flex justify-end gap-3">
