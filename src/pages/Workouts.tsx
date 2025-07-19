@@ -1,14 +1,15 @@
 
 import React, { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Edit, Trash2, Dumbbell } from 'lucide-react';
+import { Plus, Edit, Trash2, Dumbbell, Clock } from 'lucide-react';
 import CreateRoutineDialog from '@/components/CreateRoutineDialog';
 import EditRoutineDialog from '@/components/EditRoutineDialog';
+import { useWorkoutRoutines } from '@/hooks/useWorkoutRoutines';
 
 interface WorkoutRoutine {
   id: string;
@@ -24,6 +25,7 @@ interface WorkoutRoutine {
       muscle_group: string;
     };
   }[];
+  average_duration?: number;
 }
 
 export default function Workouts() {
@@ -34,34 +36,7 @@ export default function Workouts() {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [selectedRoutine, setSelectedRoutine] = useState<WorkoutRoutine | null>(null);
 
-  const { data: routines, isLoading } = useQuery({
-    queryKey: ['routines'],
-    queryFn: async (): Promise<WorkoutRoutine[]> => {
-      const { data, error } = await supabase
-        .from('workout_routines')
-        .select(`
-          id,
-          name,
-          created_at,
-          routine_exercises (
-            exercise_id,
-            order_index,
-            default_sets,
-            default_reps,
-            exercises (
-              name,
-              muscle_group
-            )
-          )
-        `)
-        .eq('user_id', user?.id)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      return data || [];
-    },
-    enabled: !!user?.id,
-  });
+  const { data: routines, isLoading } = useWorkoutRoutines();
 
   const deleteRoutineMutation = useMutation({
     mutationFn: async (routineId: string) => {
@@ -73,7 +48,7 @@ export default function Workouts() {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['routines'] });
+      queryClient.invalidateQueries({ queryKey: ['routines-with-averages'] });
       toast({
         title: "Success",
         description: "Routine deleted successfully",
@@ -97,6 +72,16 @@ export default function Workouts() {
     if (confirm('Are you sure you want to delete this routine?')) {
       deleteRoutineMutation.mutate(routineId);
     }
+  };
+
+  const formatDuration = (minutes: number) => {
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    
+    if (hours > 0) {
+      return `${hours}h ${mins}m`;
+    }
+    return `${mins}m`;
   };
 
   if (isLoading) {
@@ -143,8 +128,14 @@ export default function Workouts() {
                   <div className="flex justify-between items-start">
                     <div>
                       <CardTitle className="text-xl">{routine.name}</CardTitle>
-                      <CardDescription>
-                        {exerciseCount} exercise{exerciseCount !== 1 ? 's' : ''}
+                      <CardDescription className="space-y-1">
+                        <div>{exerciseCount} exercise{exerciseCount !== 1 ? 's' : ''}</div>
+                        {routine.average_duration && (
+                          <div className="flex items-center gap-1 text-sm text-gray-500">
+                            <Clock className="h-3 w-3" />
+                            Avg: {formatDuration(routine.average_duration)}
+                          </div>
+                        )}
                       </CardDescription>
                     </div>
                     <div className="flex gap-2">
