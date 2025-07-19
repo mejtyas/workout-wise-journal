@@ -1,6 +1,8 @@
 
+import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ExerciseLogger } from './ExerciseLogger';
+import { AddExerciseToSession } from './AddExerciseToSession';
 
 interface RoutineExercise {
   exercise_id: string;
@@ -33,6 +35,26 @@ export function ExerciseLoggingCard({
   onAddSet,
   isLoading
 }: ExerciseLoggingCardProps) {
+  const [additionalExercises, setAdditionalExercises] = useState<Array<{
+    id: string;
+    name: string;
+    muscle_group: string;
+  }>>([]);
+
+  const handleAddExercise = (exercise: { id: string; name: string; muscle_group: string }) => {
+    setAdditionalExercises(prev => [...prev, exercise]);
+  };
+
+  // Combine routine exercises with additional exercises
+  const allExercises = [
+    ...routineExercises,
+    ...additionalExercises.map(exercise => ({
+      exercise_id: exercise.id,
+      order_index: 999, // Put additional exercises at the end
+      exercises: exercise
+    }))
+  ];
+
   return (
     <Card>
       <CardHeader>
@@ -41,15 +63,21 @@ export function ExerciseLoggingCard({
       </CardHeader>
       <CardContent>
         <div className="space-y-6">
-          {routineExercises.map((routineExercise) => (
+          {allExercises.map((exerciseItem) => (
             <ExerciseLogger
-              key={routineExercise.exercise_id}
-              exercise={routineExercise.exercises}
-              setRecords={setRecords.filter(record => record.exercise_id === routineExercise.exercise_id)}
-              onAddSet={(reps, weight) => onAddSet(routineExercise.exercise_id, reps, weight)}
+              key={exerciseItem.exercise_id}
+              exercise={exerciseItem.exercises}
+              setRecords={setRecords.filter(record => record.exercise_id === exerciseItem.exercise_id)}
+              onAddSet={(reps, weight) => onAddSet(exerciseItem.exercise_id, reps, weight)}
               isLoading={isLoading}
             />
           ))}
+          
+          {/* Add Exercise Component */}
+          <AddExerciseToSession 
+            routineExercises={routineExercises}
+            onAddExercise={handleAddExercise}
+          />
         </div>
       </CardContent>
     </Card>
