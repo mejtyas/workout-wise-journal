@@ -1,7 +1,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Edit, Trash2 } from 'lucide-react';
+import { Edit, Trash2, History } from 'lucide-react';
 
 interface Exercise {
   id: string;
@@ -12,9 +12,10 @@ interface ExerciseCardProps {
   exercise: Exercise;
   onEdit: (exercise: Exercise) => void;
   onDelete: (exerciseId: string) => void;
+  onViewHistory: (exercise: Exercise) => void;
 }
 
-export function ExerciseCard({ exercise, onEdit, onDelete }: ExerciseCardProps) {
+export function ExerciseCard({ exercise, onEdit, onDelete, onViewHistory }: ExerciseCardProps) {
   return (
     <Card className="hover:shadow-md transition-shadow">
       <CardHeader className="pb-3">
@@ -23,6 +24,14 @@ export function ExerciseCard({ exercise, onEdit, onDelete }: ExerciseCardProps) 
             <CardTitle className="text-lg">{exercise.name}</CardTitle>
           </div>
           <div className="flex gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => onViewHistory(exercise)}
+              title="View exercise history"
+            >
+              <History className="h-4 w-4" />
+            </Button>
             <Button
               variant="ghost"
               size="sm"

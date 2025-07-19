@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -10,6 +9,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ExerciseDialog } from '@/components/exercises/ExerciseDialog';
 import { ExercisesList } from '@/components/exercises/ExercisesList';
 import { EmptyExercises } from '@/components/exercises/EmptyExercises';
+import { ExerciseHistoryDialog } from '@/components/exercises/ExerciseHistoryDialog';
 
 interface Exercise {
   id: string;
@@ -21,6 +21,7 @@ export default function Exercises() {
   const queryClient = useQueryClient();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingExercise, setEditingExercise] = useState<Exercise | null>(null);
+  const [historyExercise, setHistoryExercise] = useState<Exercise | null>(null);
 
   // Fetch exercises
   const { data: exercises = [], isLoading } = useQuery({
@@ -113,6 +114,10 @@ export default function Exercises() {
     setIsDialogOpen(true);
   };
 
+  const handleViewHistory = (exercise: Exercise) => {
+    setHistoryExercise(exercise);
+  };
+
   if (isLoading) {
     return <div className="flex justify-center p-8">Loading exercises...</div>;
   }
@@ -137,6 +142,7 @@ export default function Exercises() {
           exercises={exercises}
           onEdit={handleEdit}
           onDelete={handleDelete}
+          onViewHistory={handleViewHistory}
         />
       )}
 
@@ -146,6 +152,12 @@ export default function Exercises() {
         editingExercise={editingExercise}
         onSubmit={handleSubmit}
         isLoading={saveExerciseMutation.isPending}
+      />
+
+      <ExerciseHistoryDialog
+        exercise={historyExercise}
+        isOpen={!!historyExercise}
+        onClose={() => setHistoryExercise(null)}
       />
     </div>
   );
