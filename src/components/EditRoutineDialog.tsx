@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -60,14 +59,14 @@ export default function EditRoutineDialog({ routine, open, onOpenChange }: EditR
 
       if (routineError) throw routineError;
 
-      // Update exercise order and default sets/reps
+      // Update exercise order and default sets
       const updatePromises = exercises.map((exercise, index) =>
         supabase
           .from('routine_exercises')
           .update({ 
             order_index: index,
             default_sets: exercise.default_sets,
-            default_reps: exercise.default_reps
+            default_reps: null
           })
           .eq('routine_id', routine.id)
           .eq('exercise_id', exercise.exercise_id)
@@ -150,14 +149,6 @@ export default function EditRoutineDialog({ routine, open, onOpenChange }: EditR
     ));
   };
 
-  const updateExerciseReps = (exerciseId: string, reps: number) => {
-    setExercises(prev => prev.map(ex => 
-      ex.exercise_id === exerciseId 
-        ? { ...ex, default_reps: reps }
-        : ex
-    ));
-  };
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!routineName.trim()) {
@@ -177,7 +168,7 @@ export default function EditRoutineDialog({ routine, open, onOpenChange }: EditR
         <DialogHeader>
           <DialogTitle>Edit Routine</DialogTitle>
           <DialogDescription>
-            Update your routine name, add exercises, reorder exercises, and set recommended sets and reps.
+            Update your routine name, add exercises, reorder exercises, and set recommended sets.
           </DialogDescription>
         </DialogHeader>
 
@@ -210,7 +201,7 @@ export default function EditRoutineDialog({ routine, open, onOpenChange }: EditR
                     <div className="text-sm text-gray-500">{exercise.exercises.muscle_group}</div>
                   </div>
                   
-                  {/* Sets and Reps inputs */}
+                  {/* Sets input only */}
                   <div className="flex gap-3 items-center">
                     <div className="flex flex-col gap-1">
                       <Label htmlFor={`sets-${exercise.exercise_id}`} className="text-xs">Sets</Label>
@@ -221,18 +212,6 @@ export default function EditRoutineDialog({ routine, open, onOpenChange }: EditR
                         max="20"
                         value={exercise.default_sets || 3}
                         onChange={(e) => updateExerciseSets(exercise.exercise_id, parseInt(e.target.value) || 3)}
-                        className="w-16 h-8 text-center"
-                      />
-                    </div>
-                    <div className="flex flex-col gap-1">
-                      <Label htmlFor={`reps-${exercise.exercise_id}`} className="text-xs">Reps</Label>
-                      <Input
-                        id={`reps-${exercise.exercise_id}`}
-                        type="number"
-                        min="1"
-                        max="100"
-                        value={exercise.default_reps || 10}
-                        onChange={(e) => updateExerciseReps(exercise.exercise_id, parseInt(e.target.value) || 10)}
                         className="w-16 h-8 text-center"
                       />
                     </div>

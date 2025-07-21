@@ -24,7 +24,6 @@ interface Exercise {
 
 interface SelectedExercise extends Exercise {
   defaultSets: number;
-  defaultReps: number;
 }
 
 interface CreateRoutineDialogProps {
@@ -76,7 +75,7 @@ export default function CreateRoutineDialog({ open, onOpenChange }: CreateRoutin
         exercise_id: exercise.id,
         order_index: index,
         default_sets: exercise.defaultSets,
-        default_reps: exercise.defaultReps,
+        default_reps: null,
       }));
 
       const { error: exercisesError } = await supabase
@@ -109,8 +108,7 @@ export default function CreateRoutineDialog({ open, onOpenChange }: CreateRoutin
     if (checked) {
       setSelectedExercises([...selectedExercises, { 
         ...exercise, 
-        defaultSets: 3, 
-        defaultReps: 10 
+        defaultSets: 3
       }]);
     } else {
       setSelectedExercises(selectedExercises.filter(e => e.id !== exercise.id));
@@ -120,12 +118,6 @@ export default function CreateRoutineDialog({ open, onOpenChange }: CreateRoutin
   const updateExerciseSets = (exerciseId: string, sets: number) => {
     setSelectedExercises(prev => prev.map(ex => 
       ex.id === exerciseId ? { ...ex, defaultSets: sets } : ex
-    ));
-  };
-
-  const updateExerciseReps = (exerciseId: string, reps: number) => {
-    setSelectedExercises(prev => prev.map(ex => 
-      ex.id === exerciseId ? { ...ex, defaultReps: reps } : ex
     ));
   };
 
@@ -148,7 +140,7 @@ export default function CreateRoutineDialog({ open, onOpenChange }: CreateRoutin
         <DialogHeader>
           <DialogTitle>Create New Routine</DialogTitle>
           <DialogDescription>
-            Choose exercises for your routine and set recommended sets and reps.
+            Choose exercises for your routine and set recommended sets.
           </DialogDescription>
         </DialogHeader>
 
@@ -195,18 +187,6 @@ export default function CreateRoutineDialog({ open, onOpenChange }: CreateRoutin
                                 max="20"
                                 value={selectedExercise.defaultSets}
                                 onChange={(e) => updateExerciseSets(exercise.id, parseInt(e.target.value) || 3)}
-                                className="w-16 h-8 text-center"
-                              />
-                            </div>
-                            <div className="flex flex-col gap-1">
-                              <Label htmlFor={`reps-${exercise.id}`} className="text-xs">Reps</Label>
-                              <Input
-                                id={`reps-${exercise.id}`}
-                                type="number"
-                                min="1"
-                                max="100"
-                                value={selectedExercise.defaultReps}
-                                onChange={(e) => updateExerciseReps(exercise.id, parseInt(e.target.value) || 10)}
                                 className="w-16 h-8 text-center"
                               />
                             </div>

@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -52,7 +51,7 @@ export function ExerciseLogger({
     exerciseId
   } = useRestTimer(sessionId);
 
-  // Fetch routine exercise details for recommended sets/reps
+  // Fetch routine exercise details for recommended sets
   const { data: routineExercise } = useQuery({
     queryKey: ['routine-exercise', routineId, exercise.id],
     queryFn: async () => {
@@ -60,7 +59,7 @@ export function ExerciseLogger({
       
       const { data, error } = await supabase
         .from('routine_exercises')
-        .select('default_sets, default_reps')
+        .select('default_sets')
         .eq('routine_id', routineId)
         .eq('exercise_id', exercise.id)
         .maybeSingle();
@@ -180,20 +179,21 @@ export function ExerciseLogger({
   // Calculate sets progress
   const completedSets = setRecords.length;
   const recommendedSets = routineExercise?.default_sets || null;
-  const recommendedReps = routineExercise?.default_reps || null;
+
+  // Format exercise title with recommended sets
+  const exerciseTitle = recommendedSets 
+    ? `${exercise.name} ${recommendedSets}x`
+    : exercise.name;
 
   return (
     <div className="border rounded-lg p-4">
       <div className="mb-4">
         <div className="flex items-center justify-between">
-          <h3 className="font-semibold text-lg">{exercise.name}</h3>
+          <h3 className="font-semibold text-lg">{exerciseTitle}</h3>
           {recommendedSets && (
             <div className="flex items-center gap-1 text-sm text-blue-600 bg-blue-50 px-2 py-1 rounded">
               <Target className="h-3 w-3" />
               <span>{completedSets}/{recommendedSets} sets</span>
-              {recommendedReps && (
-                <span className="text-gray-500">({recommendedReps} reps)</span>
-              )}
             </div>
           )}
         </div>
@@ -263,9 +263,7 @@ export function ExerciseLogger({
           />
         </div>
         <div className="flex-1">
-          <Label htmlFor={`reps-${exercise.id}`} className="text-xs">
-            Reps{recommendedReps && ` (${recommendedReps})`}
-          </Label>
+          <Label htmlFor={`reps-${exercise.id}`} className="text-xs">Reps</Label>
           <Input
             id={`reps-${exercise.id}`}
             type="number"
