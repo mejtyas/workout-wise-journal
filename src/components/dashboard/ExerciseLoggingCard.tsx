@@ -28,6 +28,7 @@ interface ExerciseLoggingCardProps {
   onAddSet: (exerciseId: string, reps: number, weight: number) => void;
   isLoading: boolean;
   sessionId?: string;
+  routineId?: string;
 }
 
 export function ExerciseLoggingCard({
@@ -35,7 +36,8 @@ export function ExerciseLoggingCard({
   setRecords,
   onAddSet,
   isLoading,
-  sessionId
+  sessionId,
+  routineId
 }: ExerciseLoggingCardProps) {
   const [additionalExercises, setAdditionalExercises] = useState<Array<{
     id: string;
@@ -73,6 +75,7 @@ export function ExerciseLoggingCard({
               onAddSet={(reps, weight) => onAddSet(exerciseItem.exercise_id, reps, weight)}
               isLoading={isLoading}
               sessionId={sessionId}
+              routineId={routineId}
             />
           ))}
           

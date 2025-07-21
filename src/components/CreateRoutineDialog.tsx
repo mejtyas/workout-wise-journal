@@ -22,6 +22,11 @@ interface Exercise {
   muscle_group: string;
 }
 
+interface SelectedExercise extends Exercise {
+  defaultSets: number;
+  defaultReps: number;
+}
+
 interface CreateRoutineDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -32,7 +37,7 @@ export default function CreateRoutineDialog({ open, onOpenChange }: CreateRoutin
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [routineName, setRoutineName] = useState('');
-  const [selectedExercises, setSelectedExercises] = useState<Exercise[]>([]);
+  const [selectedExercises, setSelectedExercises] = useState<SelectedExercise[]>([]);
 
   const { data: exercises } = useQuery<Exercise[]>({
     queryKey: ['exercises'],
@@ -70,8 +75,8 @@ export default function CreateRoutineDialog({ open, onOpenChange }: CreateRoutin
         routine_id: routine.id,
         exercise_id: exercise.id,
         order_index: index,
-        default_sets: null,
-        default_reps: null,
+        default_sets: exercise.defaultSets,
+        default_reps: exercise.defaultReps,
       }));
 
       const { error: exercisesError } = await supabase
@@ -82,6 +87,7 @@ export default function CreateRoutineDialog({ open, onOpenChange }: CreateRoutin
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['routines'] });
+      queryClient.invalidateQueries({ queryKey: ['routines-with-averages'] });
       setRoutineName('');
       setSelectedExercises([]);
       onOpenChange(false);
@@ -101,10 +107,26 @@ export default function CreateRoutineDialog({ open, onOpenChange }: CreateRoutin
 
   const handleExerciseToggle = (exercise: Exercise, checked: boolean) => {
     if (checked) {
-      setSelectedExercises([...selectedExercises, exercise]);
+      setSelectedExercises([...selectedExercises, { 
+        ...exercise, 
+        defaultSets: 3, 
+        defaultReps: 10 
+      }]);
     } else {
       setSelectedExercises(selectedExercises.filter(e => e.id !== exercise.id));
     }
+  };
+
+  const updateExerciseSets = (exerciseId: string, sets: number) => {
+    setSelectedExercises(prev => prev.map(ex => 
+      ex.id === exerciseId ? { ...ex, defaultSets: sets } : ex
+    ));
+  };
+
+  const updateExerciseReps = (exerciseId: string, reps: number) => {
+    setSelectedExercises(prev => prev.map(ex => 
+      ex.id === exerciseId ? { ...ex, defaultReps: reps } : ex
+    ));
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -122,11 +144,11 @@ export default function CreateRoutineDialog({ open, onOpenChange }: CreateRoutin
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+      <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Create New Routine</DialogTitle>
           <DialogDescription>
-            Choose exercises for your routine. You'll record sets and reps during your workout.
+            Choose exercises for your routine and set recommended sets and reps.
           </DialogDescription>
         </DialogHeader>
 
@@ -144,18 +166,53 @@ export default function CreateRoutineDialog({ open, onOpenChange }: CreateRoutin
           <div className="space-y-4">
             <Label>Select Exercises</Label>
             {exercises?.map((exercise) => {
-              const isSelected = selectedExercises.some(e => e.id === exercise.id);
+              const selectedExercise = selectedExercises.find(e => e.id === exercise.id);
+              const isSelected = !!selectedExercise;
 
               return (
                 <div key={exercise.id} className="border rounded-lg p-4">
-                  <div className="flex items-center space-x-3">
+                  <div className="flex items-start space-x-3">
                     <Checkbox
                       checked={isSelected}
                       onCheckedChange={(checked) => handleExerciseToggle(exercise, checked as boolean)}
+                      className="mt-1"
                     />
                     <div className="flex-1">
-                      <div className="font-medium">{exercise.name}</div>
-                      <div className="text-sm text-gray-500">{exercise.muscle_group}</div>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="font-medium">{exercise.name}</div>
+                          <div className="text-sm text-gray-500">{exercise.muscle_group}</div>
+                        </div>
+                        
+                        {isSelected && (
+                          <div className="flex gap-3 items-center">
+                            <div className="flex flex-col gap-1">
+                              <Label htmlFor={`sets-${exercise.id}`} className="text-xs">Sets</Label>
+                              <Input
+                                id={`sets-${exercise.id}`}
+                                type="number"
+                                min="1"
+                                max="20"
+                                value={selectedExercise.defaultSets}
+                                onChange={(e) => updateExerciseSets(exercise.id, parseInt(e.target.value) || 3)}
+                                className="w-16 h-8 text-center"
+                              />
+                            </div>
+                            <div className="flex flex-col gap-1">
+                              <Label htmlFor={`reps-${exercise.id}`} className="text-xs">Reps</Label>
+                              <Input
+                                id={`reps-${exercise.id}`}
+                                type="number"
+                                min="1"
+                                max="100"
+                                value={selectedExercise.defaultReps}
+                                onChange={(e) => updateExerciseReps(exercise.id, parseInt(e.target.value) || 10)}
+                                className="w-16 h-8 text-center"
+                              />
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>

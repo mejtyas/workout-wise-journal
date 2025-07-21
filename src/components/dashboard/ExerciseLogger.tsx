@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Plus, TrendingUp } from 'lucide-react';
+import { Plus, TrendingUp, Target } from 'lucide-react';
 import { toast } from 'sonner';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -29,6 +29,7 @@ interface ExerciseLoggerProps {
   onAddSet: (reps: number, weight: number) => void;
   isLoading: boolean;
   sessionId?: string;
+  routineId?: string;
 }
 
 export function ExerciseLogger({
@@ -36,7 +37,8 @@ export function ExerciseLogger({
   setRecords,
   onAddSet,
   isLoading,
-  sessionId
+  sessionId,
+  routineId
 }: ExerciseLoggerProps) {
   const { user } = useAuth();
   const [reps, setReps] = useState('');
@@ -49,6 +51,28 @@ export function ExerciseLogger({
     formatTime,
     exerciseId
   } = useRestTimer(sessionId);
+
+  // Fetch routine exercise details for recommended sets/reps
+  const { data: routineExercise } = useQuery({
+    queryKey: ['routine-exercise', routineId, exercise.id],
+    queryFn: async () => {
+      if (!routineId) return null;
+      
+      const { data, error } = await supabase
+        .from('routine_exercises')
+        .select('default_sets, default_reps')
+        .eq('routine_id', routineId)
+        .eq('exercise_id', exercise.id)
+        .maybeSingle();
+
+      if (error) {
+        console.error('Error fetching routine exercise:', error);
+        return null;
+      }
+      return data;
+    },
+    enabled: !!routineId && !!exercise.id
+  });
 
   // Fetch previous performance for this exercise
   const { data: previousPerformance } = useQuery({
@@ -153,10 +177,26 @@ export function ExerciseLogger({
   // Only show timer if it's active for this specific exercise
   const shouldShowTimer = isActive && exerciseId === exercise.id;
 
+  // Calculate sets progress
+  const completedSets = setRecords.length;
+  const recommendedSets = routineExercise?.default_sets || null;
+  const recommendedReps = routineExercise?.default_reps || null;
+
   return (
     <div className="border rounded-lg p-4">
       <div className="mb-4">
-        <h3 className="font-semibold text-lg">{exercise.name}</h3>
+        <div className="flex items-center justify-between">
+          <h3 className="font-semibold text-lg">{exercise.name}</h3>
+          {recommendedSets && (
+            <div className="flex items-center gap-1 text-sm text-blue-600 bg-blue-50 px-2 py-1 rounded">
+              <Target className="h-3 w-3" />
+              <span>{completedSets}/{recommendedSets} sets</span>
+              {recommendedReps && (
+                <span className="text-gray-500">({recommendedReps} reps)</span>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Rest Timer - only show if active for this exercise */}
@@ -223,7 +263,9 @@ export function ExerciseLogger({
           />
         </div>
         <div className="flex-1">
-          <Label htmlFor={`reps-${exercise.id}`} className="text-xs">Reps</Label>
+          <Label htmlFor={`reps-${exercise.id}`} className="text-xs">
+            Reps{recommendedReps && ` (${recommendedReps})`}
+          </Label>
           <Input
             id={`reps-${exercise.id}`}
             type="number"

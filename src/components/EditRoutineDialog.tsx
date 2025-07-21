@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -59,11 +60,15 @@ export default function EditRoutineDialog({ routine, open, onOpenChange }: EditR
 
       if (routineError) throw routineError;
 
-      // Update exercise order
+      // Update exercise order and default sets/reps
       const updatePromises = exercises.map((exercise, index) =>
         supabase
           .from('routine_exercises')
-          .update({ order_index: index })
+          .update({ 
+            order_index: index,
+            default_sets: exercise.default_sets,
+            default_reps: exercise.default_reps
+          })
           .eq('routine_id', routine.id)
           .eq('exercise_id', exercise.exercise_id)
       );
@@ -76,6 +81,7 @@ export default function EditRoutineDialog({ routine, open, onOpenChange }: EditR
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['routines'] });
+      queryClient.invalidateQueries({ queryKey: ['routines-with-averages'] });
       onOpenChange(false);
       toast({
         title: "Success",
@@ -103,6 +109,7 @@ export default function EditRoutineDialog({ routine, open, onOpenChange }: EditR
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['routines'] });
+      queryClient.invalidateQueries({ queryKey: ['routines-with-averages'] });
       toast({
         title: "Success",
         description: "Exercise removed from routine",
@@ -135,6 +142,22 @@ export default function EditRoutineDialog({ routine, open, onOpenChange }: EditR
     }
   };
 
+  const updateExerciseSets = (exerciseId: string, sets: number) => {
+    setExercises(prev => prev.map(ex => 
+      ex.exercise_id === exerciseId 
+        ? { ...ex, default_sets: sets }
+        : ex
+    ));
+  };
+
+  const updateExerciseReps = (exerciseId: string, reps: number) => {
+    setExercises(prev => prev.map(ex => 
+      ex.exercise_id === exerciseId 
+        ? { ...ex, default_reps: reps }
+        : ex
+    ));
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!routineName.trim()) {
@@ -150,11 +173,11 @@ export default function EditRoutineDialog({ routine, open, onOpenChange }: EditR
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+      <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Edit Routine</DialogTitle>
           <DialogDescription>
-            Update your routine name, add exercises, and reorder exercises.
+            Update your routine name, add exercises, reorder exercises, and set recommended sets and reps.
           </DialogDescription>
         </DialogHeader>
 
@@ -180,43 +203,75 @@ export default function EditRoutineDialog({ routine, open, onOpenChange }: EditR
             />
 
             {exercises.map((exercise, index) => (
-              <div key={exercise.exercise_id} className="border rounded-lg p-4 flex items-center justify-between">
-                <div className="flex-1">
-                  <div className="font-medium">{exercise.exercises.name}</div>
-                  <div className="text-sm text-gray-500">{exercise.exercises.muscle_group}</div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="flex flex-col gap-1">
+              <div key={exercise.exercise_id} className="border rounded-lg p-4">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex-1">
+                    <div className="font-medium">{exercise.exercises.name}</div>
+                    <div className="text-sm text-gray-500">{exercise.exercises.muscle_group}</div>
+                  </div>
+                  
+                  {/* Sets and Reps inputs */}
+                  <div className="flex gap-3 items-center">
+                    <div className="flex flex-col gap-1">
+                      <Label htmlFor={`sets-${exercise.exercise_id}`} className="text-xs">Sets</Label>
+                      <Input
+                        id={`sets-${exercise.exercise_id}`}
+                        type="number"
+                        min="1"
+                        max="20"
+                        value={exercise.default_sets || 3}
+                        onChange={(e) => updateExerciseSets(exercise.exercise_id, parseInt(e.target.value) || 3)}
+                        className="w-16 h-8 text-center"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <Label htmlFor={`reps-${exercise.exercise_id}`} className="text-xs">Reps</Label>
+                      <Input
+                        id={`reps-${exercise.exercise_id}`}
+                        type="number"
+                        min="1"
+                        max="100"
+                        value={exercise.default_reps || 10}
+                        onChange={(e) => updateExerciseReps(exercise.exercise_id, parseInt(e.target.value) || 10)}
+                        className="w-16 h-8 text-center"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Move and Delete buttons */}
+                  <div className="flex items-center gap-2">
+                    <div className="flex flex-col gap-1">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => moveExercise(index, index - 1)}
+                        disabled={index === 0}
+                        className="h-8 w-8 p-0"
+                      >
+                        <ChevronUp className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => moveExercise(index, index + 1)}
+                        disabled={index === exercises.length - 1}
+                        className="h-8 w-8 p-0"
+                      >
+                        <ChevronDown className="h-4 w-4" />
+                      </Button>
+                    </div>
                     <Button
                       type="button"
                       variant="outline"
                       size="sm"
-                      onClick={() => moveExercise(index, index - 1)}
-                      disabled={index === 0}
-                      className="h-8 w-8 p-0"
+                      onClick={() => removeExercise(exercise.exercise_id)}
+                      className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
                     >
-                      <ChevronUp className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => moveExercise(index, index + 1)}
-                      disabled={index === exercises.length - 1}
-                      className="h-8 w-8 p-0"
-                    >
-                      <ChevronDown className="h-4 w-4" />
+                      <X className="h-4 w-4" />
                     </Button>
                   </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => removeExercise(exercise.exercise_id)}
-                    className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
                 </div>
               </div>
             ))}
