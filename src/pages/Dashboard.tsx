@@ -138,6 +138,7 @@ export default function Dashboard() {
           onAddSet={handleAddSet}
           isLoading={addSetMutation.isPending}
           sessionId={activeSession.id}
+          routineId={activeSession.routine_id}
         />
       )}
 
