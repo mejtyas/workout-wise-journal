@@ -89,6 +89,54 @@ export type Database = {
         }
         Relationships: []
       }
+      rest_timers: {
+        Row: {
+          created_at: string
+          duration_seconds: number
+          exercise_id: string
+          id: string
+          is_active: boolean
+          session_id: string
+          start_time: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          duration_seconds?: number
+          exercise_id: string
+          id?: string
+          is_active?: boolean
+          session_id: string
+          start_time?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          duration_seconds?: number
+          exercise_id?: string
+          id?: string
+          is_active?: boolean
+          session_id?: string
+          start_time?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rest_timers_exercise_id_fkey"
+            columns: ["exercise_id"]
+            isOneToOne: false
+            referencedRelation: "exercises"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rest_timers_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "workout_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       routine_exercises: {
         Row: {
           default_reps: number | null

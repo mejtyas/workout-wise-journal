@@ -8,6 +8,7 @@ import { ExerciseLoggingCard } from '@/components/dashboard/ExerciseLoggingCard'
 import { useDashboardQueries, useRoutineExercises, useSetRecords } from '@/hooks/useDashboardQueries';
 import { useDashboardMutations } from '@/hooks/useDashboardMutations';
 import { useWorkoutTimer } from '@/hooks/useWorkoutTimer';
+
 interface WorkoutSession {
   id: string;
   start_time: string | null;
@@ -15,6 +16,7 @@ interface WorkoutSession {
   duration_minutes: number | null;
   routine_id: string | null;
 }
+
 export default function Dashboard() {
   const [activeSession, setActiveSession] = useState<WorkoutSession | null>(null);
   const [sessionStartTime, setSessionStartTime] = useState<Date | null>(null);
@@ -38,6 +40,7 @@ export default function Dashboard() {
     endWorkoutMutation,
     addSetMutation
   } = useDashboardMutations();
+
   useEffect(() => {
     if (currentSession) {
       setActiveSession(currentSession);
@@ -46,16 +49,19 @@ export default function Dashboard() {
       }
     }
   }, [currentSession]);
+
   const handleUpdateWeight = (weight: number) => {
     updateDailyLogMutation.mutate({
       weight
     });
   };
+
   const handleUpdateCalories = (calories: number) => {
     updateDailyLogMutation.mutate({
       calories
     });
   };
+
   const handleStartWorkout = (routineId: string) => {
     startWorkoutMutation.mutate(routineId);
     setActiveSession({
@@ -67,6 +73,7 @@ export default function Dashboard() {
     });
     setSessionStartTime(new Date());
   };
+
   const handleEndWorkout = () => {
     if (!activeSession || !sessionStartTime) return;
     endWorkoutMutation.mutate({
@@ -76,6 +83,7 @@ export default function Dashboard() {
     setActiveSession(null);
     setSessionStartTime(null);
   };
+
   const handleAddSet = (exerciseId: string, reps: number, weight: number) => {
     if (!activeSession?.id) return;
     addSetMutation.mutate({
@@ -86,7 +94,9 @@ export default function Dashboard() {
       setRecords
     });
   };
-  return <div className="sm:px-4 space-y-6">
+
+  return (
+    <div className="sm:px-4 space-y-6">
       <div className="text-center">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">Welcome to your fitness journey!</h1>
         <p className="text-gray-600">Let's make today count 💪</p>
@@ -94,20 +104,45 @@ export default function Dashboard() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {/* Workout Session Card */}
-        <WorkoutSessionCard activeSession={activeSession} routines={routines} elapsedTime={elapsedTime} onStartWorkout={handleStartWorkout} onEndWorkout={handleEndWorkout} isStarting={startWorkoutMutation.isPending} isEnding={endWorkoutMutation.isPending} />
+        <WorkoutSessionCard
+          activeSession={activeSession}
+          routines={routines}
+          elapsedTime={elapsedTime}
+          onStartWorkout={handleStartWorkout}
+          onEndWorkout={handleEndWorkout}
+          isStarting={startWorkoutMutation.isPending}
+          isEnding={endWorkoutMutation.isPending}
+        />
 
         {/* Daily Tracking */}
         <div className="space-y-6">
-          <WeightCard todayData={todayData} onUpdateWeight={handleUpdateWeight} isLoading={updateDailyLogMutation.isPending} />
+          <WeightCard
+            todayData={todayData}
+            onUpdateWeight={handleUpdateWeight}
+            isLoading={updateDailyLogMutation.isPending}
+          />
 
-          <CaloriesCard todayData={todayData} onUpdateCalories={handleUpdateCalories} isLoading={updateDailyLogMutation.isPending} />
+          <CaloriesCard
+            todayData={todayData}
+            onUpdateCalories={handleUpdateCalories}
+            isLoading={updateDailyLogMutation.isPending}
+          />
         </div>
       </div>
 
       {/* Exercise Logging Section - Only show when workout is active */}
-      {activeSession && routineExercises.length > 0 && <ExerciseLoggingCard routineExercises={routineExercises} setRecords={setRecords} onAddSet={handleAddSet} isLoading={addSetMutation.isPending} />}
+      {activeSession && routineExercises.length > 0 && (
+        <ExerciseLoggingCard
+          routineExercises={routineExercises}
+          setRecords={setRecords}
+          onAddSet={handleAddSet}
+          isLoading={addSetMutation.isPending}
+          sessionId={activeSession.id}
+        />
+      )}
 
-      {routines.length === 0 && <Card>
+      {routines.length === 0 && (
+        <Card>
           <CardContent className="text-center py-8">
             <p className="text-gray-600 mb-4">
               Get started by creating your first workout routine!
@@ -116,6 +151,8 @@ export default function Dashboard() {
               <a href="/workouts">Create Workout Routine</a>
             </Button>
           </CardContent>
-        </Card>}
-    </div>;
+        </Card>
+      )}
+    </div>
+  );
 }
